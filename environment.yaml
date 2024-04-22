@@ -8,3 +8,9 @@ channels:
   # - nvidia # maybe
 dependencies:
   - pytorch
+  - pytorch-cuda
+  - tqdm
+  - torch_geometric
+  - lightning
+  - jax # need to adjust versions [cuda] or [cpu]
+  - flax
