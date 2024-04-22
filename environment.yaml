@@ -7,4 +7,4 @@ channels:
   - pytorch
   # - nvidia # maybe
 dependencies:
-  - torch
+  - pytorch
