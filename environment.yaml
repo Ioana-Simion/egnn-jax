@@ -1,0 +1,10 @@
+name: egnn-transformer
+channels:
+  - pytorch
+  - anaconda
+  - conda-forge
+  - defaults
+  - pytorch
+  # - nvidia # maybe
+dependencies:
+  - torch
