@@ -4,12 +4,9 @@ channels:
   - anaconda
   - conda-forge
   - defaults
-  # - nvidia # maybe
 dependencies:
   - pytorch
-  - pytorch-cuda
   - tqdm
-  - torch_geometric
   - lightning
-  - jax # need to adjust versions [cuda] or [cpu]
+  - jax
   - flax
