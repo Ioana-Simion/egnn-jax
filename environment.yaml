@@ -14,3 +14,4 @@ dependencies:
   - lightning
   - jax # need to adjust versions [cuda] or [cpu]
   - flax
+  - rdkit
