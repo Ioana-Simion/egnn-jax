@@ -117,6 +117,9 @@ class EGNN(nn.Module):
                                                 act_fn=act_fn, residual=residual))
         self.to(self.device)
 
+    # TODO how does this work in jax and what does it do
+    # @nn.compact
+    #     def __call__(self,...):
     def forward(self, h, x, edges, edge_attr):
         h = self.embedding_in(h)
         for i in range(0, self.n_layers):
@@ -124,7 +127,7 @@ class EGNN(nn.Module):
         h = self.embedding_out(h)
         return h, x
 
-# TODO write in jax
+
 def unsorted_segment_sum(data, segment_ids, num_segments):
     result_shape = (num_segments, data.size(1))
     result = data.new_full(result_shape, 0)  # Init empty result tensor.
@@ -132,17 +135,17 @@ def unsorted_segment_sum(data, segment_ids, num_segments):
     result.scatter_add_(0, segment_ids, data)
     return result
 
-# TODO rewrite in jax
+
 def unsorted_segment_mean(data, segment_ids, num_segments):
     result_shape = (num_segments, data.size(1))
     segment_ids = segment_ids.unsqueeze(-1).expand(-1, data.size(1))
     result = data.new_full(result_shape, 0)  # Init empty result tensor.
     count = data.new_full(result_shape, 0)
     result.scatter_add_(0, segment_ids, data)
-    count.scatter_add_(0, segment_ids, torch.ones_like(data))
+    count.scatter_add_(0, segment_ids, jax.ones_like(data))
     return result / count.clamp(min=1)
 
-# TODO rewrite in jax
+
 def get_edges(n_nodes):
     rows, cols = [], []
     for i in range(n_nodes):
