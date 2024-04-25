@@ -80,7 +80,7 @@ class E_GCL(nn.Module):
         radial = jax.sum(coord_diff**2, 1).unsqueeze(1)
         return radial, coord_diff
 
-    # TODO rewrite in jax
+
     def forward(self, h, edge_index, coord, edge_attr=None, node_attr=None):
         row, col = edge_index
         radial, coord_diff = self.coord2radial(edge_index, coord)
