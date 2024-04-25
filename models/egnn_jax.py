@@ -12,8 +12,7 @@ def xavier_init(gain):
 
 class E_GCL(nn.Module):
     """
-    E(n) Equivariant Convolutional Layer
-    re
+    E(n) Equivariant Message Passing Layer
     """
 
     def __init__(self, input_nf, output_nf, hidden_nf, edges_in_d=0, act_fn=nn.activation.silu, residual=True, coords_agg='mean'):
