@@ -1,47 +1,53 @@
 import os
 import os.path as osp
-import urllib
-import errno
-import tarfile
-from rdkit import Chem
-from rdkit.Chem import ChemicalFeatures
-from rdkit import RDConfig
 import torch
-from rdkit.Chem import AllChem  # noqa
-from rdkit.Chem.rdchem import HybridizationType
-from rdkit.Chem.rdchem import BondType
+import errno
+import urllib
+import tarfile
+import numpy as np
+
+# from tqdm import tqdm # I suggest using this for the dataset processing - Greg
+from rdkit import Chem, RDConfig
+from rdkit.Chem import AllChem, ChemicalFeatures  # noqa for AllChem
+from rdkit.Chem.rdchem import BondType, HybridizationType
 
 # From https://gist.github.com/rusty1s/159eeff0d95e0786d220a164c6edd021
 
-def makedirs(path):
+
+def makedirs(path: str):
+
     try:
         os.makedirs(osp.expanduser(osp.normpath(path)))
+
     except OSError as e:
         if e.errno != errno.EEXIST and osp.isdir(path):
             raise e
 
 
-def download_url(url, folder, log=True):
-    print('Downloading', url)
+def download_url(url, folder: str, log: bool = True):
+
+    print("Downloading", url)
     makedirs(folder)
 
     data = urllib.request.urlopen(url)
-    filename = url.rpartition('/')[2]
+    filename = url.rpartition("/")[2]
     path = osp.join(folder, filename)
 
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         f.write(data.read())
 
     return path
 
 
-def extract_tar(path, folder, mode='r:gz', log=True):
-    print('Extracting', path)
+def extract_tar(path: str, folder: str, mode: str = "r:gz", log: bool = True):
+
+    print("Extracting", path)
     with tarfile.open(path, mode) as f:
         f.extractall(folder)
 
 
-def coalesce(index, value):
+def coalesce(index: torch.Tensor, value: torch.Tensor):
+
     n = index.max().item() + 1
     row, col = index
     unique, inv = torch.unique(row * n + col, sorted=True, return_inverse=True)
@@ -54,26 +60,29 @@ def coalesce(index, value):
     return index, value
 
 
-def process_qm9(path): 
+def process_qm9(path: str):
 
-    suppl = Chem.SDMolSupplier('{}/gdb9.sdf'.format(path))
+    suppl = Chem.SDMolSupplier(f"{path}/gdb9.sdf")
 
-    with open('{}/gdb9.sdf.csv'.format(path), 'r') as f:
-        target = f.read().split('\n')[1:-1]
-        target = [[float(x) for x in line.split(',')[4:16]] for line in target]
+    with open(f"{path}/gdb9.sdf.csv", "r") as f:
+
+        target = f.read().split("\n")[1:-1]
+        target = [[float(x) for x in line.split(",")[4:16]] for line in target]
         target = torch.tensor(target, dtype=torch.float)
 
-    fdef_name = os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef')
+    fdef_name = os.path.join(RDConfig.RDDataDir, "BaseFeatures.fdef")
     factory = ChemicalFeatures.BuildFeatureFactory(fdef_name)
     data_list = []
 
     for i, mol in enumerate(suppl):
+
         if mol is None:
             continue
 
         text = suppl.GetItemText(i)
         num_hs = []
         for atom in mol.GetAtoms():
+
             num_hs.append(atom.GetTotalNumHs())
 
         mol = Chem.AddHs(mol)
@@ -106,17 +115,18 @@ def process_qm9(path):
         num_atoms = mol.GetNumAtoms()
 
         print(i)
-        pos = text.split('\n')[4:4 + num_atoms]
+        pos = text.split("\n")[4 : 4 + num_atoms]
         pos = [[float(x) for x in line.split()[:3]] for line in pos]
 
         for j in range(num_atoms):
+
             atom = mol.GetAtomWithIdx(j)
             symbol = atom.GetSymbol()
-            H_type.append(1 if symbol == 'H' else 0)
-            C_type.append(1 if symbol == 'C' else 0)
-            N_type.append(1 if symbol == 'N' else 0)
-            O_type.append(1 if symbol == 'O' else 0)
-            F_type.append(1 if symbol == 'F' else 0)
+            H_type.append(1 if symbol == "H" else 0)
+            C_type.append(1 if symbol == "C" else 0)
+            N_type.append(1 if symbol == "N" else 0)
+            O_type.append(1 if symbol == "O" else 0)
+            F_type.append(1 if symbol == "F" else 0)
             atomic_number.append(atom.GetAtomicNum())
             hybridization = atom.GetHybridization()
             sp.append(1 if hybridization == HybridizationType.SP else 0)
@@ -126,25 +136,40 @@ def process_qm9(path):
             acceptor.append(0)
             donor.append(0)
 
-            if symbol == 'H':
+            if symbol == "H":
                 num_hs.insert(j, 0)
 
             # p = mol.GetConformer().GetAtomPosition(j)
             # pos.append([p.x, p.y, p.z])
 
         for j in range(0, len(feats)):
-            if feats[j].GetFamily() == 'Donor':
+
+            if feats[j].GetFamily() == "Donor":
                 node_list = feats[j].GetAtomIds()
                 for j in node_list:
+
                     donor[j] = 1
-            elif feats[j].GetFamily() == 'Acceptor':
+
+            elif feats[j].GetFamily() == "Acceptor":
                 node_list = feats[j].GetAtomIds()
                 for j in node_list:
+
                     acceptor[j] = 1
 
         x = [
-            H_type, C_type, N_type, O_type, F_type, atomic_number, acceptor, donor,
-            aromatic, sp, sp2, sp3, num_hs
+            H_type,
+            C_type,
+            N_type,
+            O_type,
+            F_type,
+            atomic_number,
+            acceptor,
+            donor,
+            aromatic,
+            sp,
+            sp2,
+            sp3,
+            num_hs,
         ]
         x = np.array(x, dtype=torch.float).t().contiguous()
         pos = torch.tensor(pos, dtype=torch.float)
@@ -176,6 +201,7 @@ def process_qm9(path):
 
         # Non-complete graph
         for bond in mol.GetBonds():
+
             start = bond.GetBeginAtomIdx()
             end = bond.GetEndAtomIdx()
 
@@ -196,8 +222,11 @@ def process_qm9(path):
             aromatic.append(aromatic[-1])
 
         edge_index = torch.tensor([row, col], dtype=torch.long)
-        edge_attr = torch.tensor([single, double, triple, aromatic],
-                                dtype=torch.float).t().contiguous()
+        edge_attr = (
+            torch.tensor([single, double, triple, aromatic], dtype=torch.float)
+            .t()
+            .contiguous()
+        )
 
         edge_index, edge_attr = coalesce(edge_index, edge_attr)
 
@@ -205,12 +234,14 @@ def process_qm9(path):
         assert edge_index.size(1) == edge_attr.size(0)
         assert edge_index.max().item() + 1 <= x.size(0)
 
-        data_list.append({
-            'x': x,
-            'y': y,
-            'pos': pos,
-            'edge_index': edge_index,
-            'edge_attr': edge_attr
-        })
+        data_list.append(
+            {
+                "x": x,
+                "y": y,
+                "pos": pos,
+                "edge_index": edge_index,
+                "edge_attr": edge_attr,
+            }
+        )
 
-    torch.save(data_list, '{}/qm9.pt'.format(path))
+    torch.save(data_list, f"{path}/qm9.pt")
