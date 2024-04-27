@@ -1,0 +1,7 @@
+pytorch==2.3.0
+pytorch-cuda==12.4
+lightning==2.2.2
+tqdm==4.66.2
+rdkit
+jax[cpu]==0.4.26
+flax==0.8.2
