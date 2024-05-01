@@ -7,13 +7,13 @@ channels:
   - nvidia # Only if you have CUDA-support
 dependencies:
   - pytorch
-  - pytorch-cuda==11.8 # Only if you have CUDA-support (might need to adjust version number)
+  - pytorch-cuda # Only if you have CUDA-support
   - nvidia::cudatoolkit # Only if you have CUDA-support
   - tqdm
   - lightning
   - rdkit
+  - pyg
+  - flax
   - pip
   - pip:
-    - "jax[cpu]"
-    - torch_geometric
-    - flax
+    - "jax[cuda]"
