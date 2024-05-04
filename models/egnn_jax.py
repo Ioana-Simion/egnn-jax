@@ -61,14 +61,20 @@ class E_GCL(nn.Module):
         out = jnp.concatenate([source, target, radial, edge_attr], axis=1)
         return edge_mlp(out)
 
-    def node_model(self, x, edge_index, edge_attr, node_attr):
+    def node_model(self, edge_index, edge_attr, x):
         row, col = edge_index
         agg = unsorted_segment_sum(edge_attr, row, num_segments=x.size(0))
-        if node_attr is not None:
-            agg = jax.cat([x, agg, node_attr], dim=1)
-        else:
-            agg = jax.cat([x, agg], dim=1)
-        out = self.node_mlp(agg)
+
+        node_mlp = nn.Sequential([
+            nn.Dense(self.hidden_dim),
+            self.act_fn,
+            nn.Dense(self.hidden_dim)
+        ])
+
+        agg = jnp.concatenate([x, agg], axis=1)
+        out = node_mlp(agg)
+
+        # TODO do we need to add x to out? to update it
         return out, agg
 
     def coord_model(self, edge_index, coord_diff, edge_feat, coord):
@@ -92,8 +98,8 @@ class E_GCL(nn.Module):
 
     @nn.compact
     def __call__(self, h, edge_index, coord, edge_attr=None):
-        m_ij = self.edge_model(self, edge_index, h, coord, edge_attr)
-
+        m_ij = self.edge_model(edge_index, h, coord, edge_attr)
+        h, agg = self.node_model(edge_index, m_ij, x)
 
 
 
