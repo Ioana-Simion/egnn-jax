@@ -47,13 +47,19 @@ class E_GCL(nn.Module):
     #     self.coord_mlp = nn.Sequential([*coord_mlp])
 
 
-    def edge_model(self, source, target, radial, edge_attr):
-        if edge_attr is None:
-            out = jax.cat([source, target, radial], dim=1)
-        else:
-            out = jax.cat([source, target, radial, edge_attr], dim=1)
-        out = self.edge_mlp(out)
-        return out
+    def edge_model(self, edge_index, h, coord, edge_attr):
+        row, col = edge_index
+        source, target = h[row], h[col]
+        radial, coord_diff = self.coord2radial(edge_index, coord)
+
+        edge_mlp = nn.Sequential([
+            nn.Dense(self.hidden_dim),
+            self.act_fn,
+            nn.Dense(self.hidden_dim),
+            self.act_fn
+        ])
+        out = jnp.concatenate([source, target, radial, edge_attr], axis=1)
+        return edge_mlp(out)
 
     def node_model(self, x, edge_index, edge_attr, node_attr):
         row, col = edge_index
@@ -65,7 +71,7 @@ class E_GCL(nn.Module):
         out = self.node_mlp(agg)
         return out, agg
 
-    def coord_model(self, coord, edge_index, coord_diff, edge_feat):
+    def coord_model(self, edge_index, coord_diff, edge_feat, coord):
         row, col = edge_index
         trans = coord_diff * self.coord_mlp(edge_feat)
         if self.coords_agg == 'sum':
@@ -80,18 +86,21 @@ class E_GCL(nn.Module):
     def coord2radial(self, edge_index, coord):
         row, col = edge_index
         coord_diff = coord[row] - coord[col]
-        radial = jax.sum(coord_diff**2, 1).unsqueeze(1)
+        radial = jnp.sum(coord_diff**2, axis=1, keepdims=True)
         return radial, coord_diff
 
 
     @nn.compact
-    def __call__(self, h, edge_index, coord, edge_attr=None, node_attr=None):
-        row, col = edge_index
-        radial, coord_diff = self.coord2radial(edge_index, coord)
+    def __call__(self, h, edge_index, coord, edge_attr=None):
+        m_ij = self.edge_model(self, edge_index, h, coord, edge_attr)
 
-        edge_feat = self.edge_model(h[row], h[col], radial, edge_attr)
-        coord = self.coord_model(coord, edge_index, coord_diff, edge_feat)
-        h, agg = self.node_model(h, edge_index, edge_feat, node_attr)
+
+
+
+
+
+
+
 
         return h, coord, edge_attr
 
