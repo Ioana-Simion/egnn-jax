@@ -19,34 +19,6 @@ class E_GCL(nn.Module):
     act_fn: callable
     residual: bool
 
-    # def __init__(self, input_nf, output_nf, hidden_nf, edges_in_d=0, act_fn=nn.activation.silu, residual=True, coords_agg='mean'):
-    #     super(E_GCL, self).__init__()
-    #     input_edge = input_nf * 2
-    #     self.residual = residual
-    #     self.coords_agg = coords_agg
-    #     self.epsilon = 1e-8
-    #     edge_coords_nf = 1
-    #
-    #     self.edge_mlp = nn.Sequential([
-    #         nn.Dense(input_edge + edge_coords_nf + edges_in_d, hidden_nf),
-    #         act_fn,
-    #         nn.Dense(hidden_nf, hidden_nf),
-    #         act_fn])
-    #
-    #     self.node_mlp = nn.Sequential([
-    #         nn.Dense(hidden_nf + input_nf, hidden_nf),
-    #         act_fn,
-    #         nn.Dense(hidden_nf, output_nf)])
-    #
-    #     layer = nn.Dense(hidden_nf, 1, kernel_init=xavier_init(gain=0.001))
-    #
-    #     coord_mlp = []
-    #     coord_mlp.append(nn.Dense(hidden_nf, hidden_nf))
-    #     coord_mlp.append(act_fn)
-    #     coord_mlp.append(layer)
-    #     self.coord_mlp = nn.Sequential([*coord_mlp])
-
-
     def edge_model(self, edge_index, h, coord, edge_attr):
         row, col = edge_index
         source, target = h[row], h[col]
@@ -77,15 +49,17 @@ class E_GCL(nn.Module):
         # TODO do we need to add x to out? to update it
         return out, agg
 
-    def coord_model(self, edge_index, coord_diff, edge_feat, coord):
+    def coord_model(self, edge_index, edge_feat, coord):
         row, col = edge_index
-        trans = coord_diff * self.coord_mlp(edge_feat)
-        if self.coords_agg == 'sum':
-            agg = unsorted_segment_sum(trans, row, num_segments=coord.size(0))
-        elif self.coords_agg == 'mean':
-            agg = unsorted_segment_mean(trans, row, num_segments=coord.size(0))
-        else:
-            raise Exception('Wrong coords_agg parameter' % self.coords_agg)
+        coord_mlp = nn.Sequential([
+            nn.Dense(self.hidden_dim),
+            self.act_fn,
+            nn.Dense(self.hidden_nf, 1, kernel_init=xavier_init(gain=0.001))
+        ])
+        trans = (x[row] - x[col]) * coord_mlp(edge_feat)
+
+        agg = unsorted_segment_mean(trans, row, num_segments=coord.size(0))
+
         coord = coord + agg
         return coord
 
@@ -99,16 +73,9 @@ class E_GCL(nn.Module):
     @nn.compact
     def __call__(self, h, edge_index, coord, edge_attr=None):
         m_ij = self.edge_model(edge_index, h, coord, edge_attr)
-        h, agg = self.node_model(edge_index, m_ij, x)
-
-
-
-
-
-
-
-
-        return h, coord, edge_attr
+        h, agg = self.node_model(edge_index, m_ij, h)
+        coord = self.coord_model(edge_index, m_ij, coord)
+        return h, coord, m_ij
 
 
 class EGNN(nn.Module):
