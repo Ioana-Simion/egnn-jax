@@ -14,33 +14,37 @@ class E_GCL(nn.Module):
     """
     E(n) Equivariant Message Passing Layer
     """
+    hidden_dim: int
+    edges_in_d: int
+    act_fn: callable
+    residual: bool
 
-    def __init__(self, input_nf, output_nf, hidden_nf, edges_in_d=0, act_fn=nn.activation.silu, residual=True, coords_agg='mean'):
-        super(E_GCL, self).__init__()
-        input_edge = input_nf * 2
-        self.residual = residual
-        self.coords_agg = coords_agg
-        self.epsilon = 1e-8
-        edge_coords_nf = 1
-
-        self.edge_mlp = nn.Sequential([
-            nn.Dense(input_edge + edge_coords_nf + edges_in_d, hidden_nf),
-            act_fn,
-            nn.Dense(hidden_nf, hidden_nf),
-            act_fn])
-
-        self.node_mlp = nn.Sequential([
-            nn.Dense(hidden_nf + input_nf, hidden_nf),
-            act_fn,
-            nn.Dense(hidden_nf, output_nf)])
-
-        layer = nn.Dense(hidden_nf, 1, kernel_init=xavier_init(gain=0.001))
-
-        coord_mlp = []
-        coord_mlp.append(nn.Dense(hidden_nf, hidden_nf))
-        coord_mlp.append(act_fn)
-        coord_mlp.append(layer)
-        self.coord_mlp = nn.Sequential([*coord_mlp])
+    # def __init__(self, input_nf, output_nf, hidden_nf, edges_in_d=0, act_fn=nn.activation.silu, residual=True, coords_agg='mean'):
+    #     super(E_GCL, self).__init__()
+    #     input_edge = input_nf * 2
+    #     self.residual = residual
+    #     self.coords_agg = coords_agg
+    #     self.epsilon = 1e-8
+    #     edge_coords_nf = 1
+    #
+    #     self.edge_mlp = nn.Sequential([
+    #         nn.Dense(input_edge + edge_coords_nf + edges_in_d, hidden_nf),
+    #         act_fn,
+    #         nn.Dense(hidden_nf, hidden_nf),
+    #         act_fn])
+    #
+    #     self.node_mlp = nn.Sequential([
+    #         nn.Dense(hidden_nf + input_nf, hidden_nf),
+    #         act_fn,
+    #         nn.Dense(hidden_nf, output_nf)])
+    #
+    #     layer = nn.Dense(hidden_nf, 1, kernel_init=xavier_init(gain=0.001))
+    #
+    #     coord_mlp = []
+    #     coord_mlp.append(nn.Dense(hidden_nf, hidden_nf))
+    #     coord_mlp.append(act_fn)
+    #     coord_mlp.append(layer)
+    #     self.coord_mlp = nn.Sequential([*coord_mlp])
 
 
     def edge_model(self, source, target, radial, edge_attr):
@@ -80,7 +84,8 @@ class E_GCL(nn.Module):
         return radial, coord_diff
 
 
-    def forward(self, h, edge_index, coord, edge_attr=None, node_attr=None):
+    @nn.compact
+    def __call__(self, h, edge_index, coord, edge_attr=None, node_attr=None):
         row, col = edge_index
         radial, coord_diff = self.coord2radial(edge_index, coord)
 
@@ -92,38 +97,22 @@ class E_GCL(nn.Module):
 
 
 class EGNN(nn.Module):
-    def __init__(self, in_node_nf, hidden_nf, out_node_nf, in_edge_nf=0, device='cpu', act_fn=nn.activation.silu(), n_layers=4, residual=True):
-        '''
+    in_node_nf: int
+    hidden_nf: int
+    out_node_nf: int
+    in_edge_nf: int = 0
+    act_fn = nn.silu  # default activation function
+    n_layers: int = 4
+    residual: bool = True
 
-        :param in_node_nf: Number of features for 'h' at the input
-        :param hidden_nf: Number of hidden features
-        :param out_node_nf: Number of features for 'h' at the output
-        :param in_edge_nf: Number of features for the edge features
-        :param device: Device (e.g. 'cpu', 'cuda:0',...)
-        :param act_fn: Non-linearity
-        :param n_layers: Number of layer for the EGNN
-        :param residual: Use residual connections, we recommend not changing this one
-        '''
 
-        super(EGNN, self).__init__()
-        self.hidden_nf = hidden_nf
-        self.device = device
-        self.n_layers = n_layers
-        self.embedding_in = nn.Dense(in_node_nf, self.hidden_nf)
-        self.embedding_out = nn.Dense(self.hidden_nf, out_node_nf)
-        for i in range(0, n_layers):
-            self.add_module("gcl_%d" % i, E_GCL(self.hidden_nf, self.hidden_nf, self.hidden_nf, edges_in_d=in_edge_nf,
-                                                act_fn=act_fn, residual=residual))
-        self.to(self.device)
-
-    # TODO how does this work in jax and what does it do
-    # @nn.compact
-    #     def __call__(self,...):
-    def forward(self, h, x, edges, edge_attr):
-        h = self.embedding_in(h)
-        for i in range(0, self.n_layers):
-            h, x, _ = self._modules["gcl_%d" % i](h, edges, x, edge_attr=edge_attr)
-        h = self.embedding_out(h)
+    @nn.compact
+    def __call__(self, h, x, edges, edge_attr):
+        h = nn.Dense(self.hidden_nf)(h)
+        for i in range(self.n_layers):
+            layer = E_GCL(self.hidden_nf, edges_in_d=self.in_edge_nf, act_fn=self.act_fn, residual=self.residual) #name=f"gcl_{i}"
+            h, x, _ = layer(h, edges, x, edge_attr=edge_attr)
+        h = nn.Dense(self.out_node_nf)(h)
         return h, x
 
 
@@ -158,8 +147,8 @@ def get_edges(n_nodes):
 
 def get_edges_batch(n_nodes, batch_size):
     edges = get_edges(n_nodes)
-    edge_attr = jax.ones(len(edges[0]) * batch_size, 1)
-    edges = [jax.LongTensor(edges[0]), jax.LongTensor(edges[1])]
+    edge_attr = jnp.ones((len(edges[0]) * batch_size, 1))
+    edges = [jnp.array(edges[0], dtype=jnp.int32), jnp.array(edges[1], dtype=jnp.int32)]
     if batch_size == 1:
         return edges, edge_attr
     elif batch_size > 1:
@@ -167,7 +156,7 @@ def get_edges_batch(n_nodes, batch_size):
         for i in range(batch_size):
             rows.append(edges[0] + n_nodes * i)
             cols.append(edges[1] + n_nodes * i)
-        edges = [jax.cat(rows), jax.cat(cols)]
+        edges = [jnp.concatenate(rows), jnp.concatenate(cols)]
     return edges, edge_attr
 
 
@@ -179,12 +168,16 @@ if __name__ == "__main__":
     x_dim = 3
 
     # Dummy variables h, x and fully connected edges
-    h = jax.ones(batch_size * n_nodes, n_feat)
-    x = jax.ones(batch_size * n_nodes, x_dim)
+    h = jnp.ones((batch_size * n_nodes, n_feat))
+    x = jnp.ones((batch_size * n_nodes, x_dim))
     edges, edge_attr = get_edges_batch(n_nodes, batch_size)
+
+    rng = jax.random.PRNGKey(42)
 
     # Initialize EGNN
     egnn = EGNN(in_node_nf=n_feat, hidden_nf=32, out_node_nf=1, in_edge_nf=1)
 
-    # Run EGNN
-    h, x = egnn(h, x, edges, edge_attr)
+    params = egnn.init(rng, h, x, edges, edge_attr)['params']
+
+    # Now you can use the model's `apply` method with these parameters
+    output = egnn.apply({'params': params}, h, x, edges, edge_attr)
