@@ -15,7 +15,6 @@ class E_GCL(nn.Module):
     E(n) Equivariant Message Passing Layer
     """
     hidden_nf: int
-    edges_in_d: int
     act_fn: callable
     residual: bool
 
@@ -87,7 +86,6 @@ class E_GCL(nn.Module):
 class EGNN(nn.Module):
     hidden_nf: int
     out_node_nf: int
-    in_edge_nf: int = 0
     act_fn : callable = nn.silu  # default activation function
     n_layers: int = 4
     residual: bool = True
@@ -96,7 +94,7 @@ class EGNN(nn.Module):
     def __call__(self, h, x, edges, edge_attr):
         h = nn.Dense(self.hidden_nf)(h)
         for i in range(self.n_layers):
-            h, x, _ = E_GCL(self.hidden_nf, edges_in_d=self.in_edge_nf, act_fn=self.act_fn,
+            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn,
                             residual=self.residual)(h, edges, x, edge_attr=edge_attr) #name=f"gcl_{i}"
         h = nn.Dense(self.out_node_nf)(h)
         return h, x
@@ -154,7 +152,7 @@ if __name__ == "__main__":
     rng = jax.random.PRNGKey(42)
 
     # Initialize EGNN
-    egnn = EGNN(hidden_nf=32, out_node_nf=1, in_edge_nf=1)
+    egnn = EGNN(hidden_nf=32, out_node_nf=1)
 
     params = egnn.init(rng, h, x, edges, edge_attr)['params']
 
