@@ -6,7 +6,7 @@ import jax.numpy as jnp
 def xavier_init(gain):
     def init(key, shape, dtype):
         bound = gain * jnp.sqrt(6. / (shape[0] + shape[1]))
-        jax.random.uniform(key, shape, dtype, minval=-bound, maxval=bound)
+        return jax.random.uniform(key, shape, dtype, -bound, bound)
     return init
 
 
@@ -64,7 +64,7 @@ class E_GCL(nn.Module):
         coord_out = coord_mlp(edge_feat)
         trans = (coord[row] - coord[col]) * coord_out
 
-        agg = unsorted_segment_mean(trans, row, num_segments=coord.size(0))
+        agg = unsorted_segment_mean(trans, row, num_segments=coord.shape[0])
 
         coord = coord + agg
         return coord
@@ -107,13 +107,9 @@ def unsorted_segment_sum(data, segment_ids, num_segments):
 
 
 def unsorted_segment_mean(data, segment_ids, num_segments):
-    result_shape = (num_segments, data.size(1))
-    segment_ids = segment_ids.unsqueeze(-1).expand(-1, data.size(1))
-    result = data.new_full(result_shape, 0)  # Init empty result tensor.
-    count = data.new_full(result_shape, 0)
-    result.scatter_add_(0, segment_ids, data)
-    count.scatter_add_(0, segment_ids, jax.ones_like(data))
-    return result / count.clamp(min=1)
+    seg_sum = jax.ops.segment_sum(data, segment_ids, num_segments)
+    seg_count = jax.ops.segment_sum(jnp.ones_like(data), segment_ids, num_segments)
+    return seg_sum / seg_count
 
 
 def get_edges(n_nodes):
