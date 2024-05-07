@@ -7,8 +7,8 @@ channels:
   - nvidia # Only if you have CUDA-support
 dependencies:
   - pytorch
-  - pytorch-cuda==11.8 # Only if you have CUDA-support (might need to adjust version number)
-  - nvidia::cudatoolkit # Only if you have CUDA-support
+  # - pytorch-cuda==11.8 # Only if you have CUDA-support (might need to adjust version number)
+  # - nvidia::cudatoolkit # Only if you have CUDA-support
   - tqdm
   - lightning
   - rdkit
