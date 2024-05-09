@@ -122,7 +122,7 @@ if __name__ == "__main__":
         "--target-name", type=str, default="mu", help="target feature to predict"
     )  # idk just guessing - Greg
     parser.add_argument(
-        "--dim", type=int, default="mu", help="dimension"
+        "--dim", type=int, default=1, help="dimension"
     )  # idk just guessing - Greg
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument(
