@@ -4,10 +4,8 @@ channels:
   - anaconda
   - conda-forge
   - defaults
-  # - nvidia # maybe
 dependencies:
   - pytorch
-  - pytorch-cuda
   - tqdm
   - torch_geometric
   - lightning
