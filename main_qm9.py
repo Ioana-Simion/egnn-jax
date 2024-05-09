@@ -4,7 +4,7 @@ import torch
 import argparse
 import jax.numpy as jnp
 from tqdm import tqdm
-from qm9.utils import calc_mean_mad
+from dataset.qm9.utils import calc_mean_mad
 from utils.utils import get_model, get_loaders, set_seed
 
 
