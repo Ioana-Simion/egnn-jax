@@ -1,1 +1,8 @@
+# Remove all the caches
+dataset/__pycache__
+dataset/qm9/__pycache__
+qm9/__pycache__
+utils/__pycache__
+models/__pycache__
+
 .idea
