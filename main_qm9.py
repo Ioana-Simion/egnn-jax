@@ -26,8 +26,8 @@ def train_step(state, batch):
 def main(args):
     # Generate model
     model = get_model(args)  # .to(args.device)
-    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Number of parameters: {num_params}")
+    # num_params = sum(p.numel() for p in model.parameters() if p.requires_grad) # Commented this out bcs we don't have model.parameters()
+    # print(f"Number of parameters: {num_params}")
     # Get loaders
     train_loader, val_loader, test_loader = get_loaders(args)
     mean, mad = calc_mean_mad(train_loader)
@@ -118,6 +118,12 @@ if __name__ == "__main__":
 
     # Dataset arguments
     parser.add_argument("--dataset", type=str, default="qm9", help="dataset")
+    parser.add_argument(
+        "--target-name", type=str, default="mu", help="target feature to predict"
+    )  # idk just guessing - Greg
+    parser.add_argument(
+        "--dim", type=int, default="mu", help="dimension"
+    )  # idk just guessing - Greg
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument(
         "--property",
