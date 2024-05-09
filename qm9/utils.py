@@ -1,13 +1,13 @@
 # from https://github.com/flooreijkelboom/equivariant-simplicial-mp/blob/main/qm9/utils.py
 
 import torch
+from tqdm import tqdm
 from torch import Tensor
+from typing import Tuple, Dict
+from argparse import Namespace
 from torch_geometric.data import Data
 from torch_geometric.datasets import QM9
 from torch_geometric.loader import DataLoader
-from tqdm import tqdm
-from typing import Tuple, Dict
-from argparse import Namespace
 
 
 def calc_mean_mad(loader: DataLoader) -> Tuple[Tensor, Tensor]:

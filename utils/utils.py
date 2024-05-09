@@ -13,8 +13,9 @@ from torch_geometric.loader import DataLoader
 def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
     if args.dataset == "qm9":
-        num_input = 15
+        # num_input = 15
         num_out = 1
+
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -36,7 +37,7 @@ def get_model(args: Namespace) -> nn.Module:
 def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """Return dataloaders based on dataset."""
     if args.dataset == "qm9":
-        from dataset.qm9.utils import generate_loaders_qm9
+        from qm9.utils import generate_loaders_qm9
 
         train_loader, val_loader, test_loader = generate_loaders_qm9(args)
     else:
@@ -46,6 +47,7 @@ def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
 
 
 def set_seed(seed: int = 42) -> None:
+
     np.random.seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
@@ -55,4 +57,5 @@ def set_seed(seed: int = 42) -> None:
     torch.backends.cudnn.benchmark = False
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
+
     print(f"Random seed set as {seed}")
