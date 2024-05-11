@@ -32,7 +32,7 @@ def prepare_data(
     Z_tilde = (Z / Z_max).unsqueeze(1).repeat(1, 5)
 
     graph.x = torch.cat(
-        (one_hot, Z_tilde * one_hot, Z_tilde * Z_tilde * one_hot), dim=1
+        (one_hot, Z_tilde * one_hot, Z_tilde * Z_tilde * one_hot, graph.x[:, 6:-1]), dim=1
     )
 
     return graph
