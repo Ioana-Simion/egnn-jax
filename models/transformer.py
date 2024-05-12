@@ -8,6 +8,20 @@ import flax.linen as nn
 from ..utils.transformer_utils import *
 
 
+# Helper function to support different mask shapes.
+# Output shape supports (batch_size, number of heads, seq length, seq length)
+# If 2D: broadcasted over batch size and number of heads
+# If 3D: broadcasted over number of heads
+# If 4D: leave as is
+def expand_mask(mask):
+    assert mask.ndim >= 2, "Mask must be at least 2-dimensional with seq_length x seq_length"
+    if mask.ndim == 3:
+        mask = mask.unsqueeze(1)
+    while mask.ndim < 4:
+        mask = mask.unsqueeze(0)
+    return mask
+
+
 class MultiheadAttention(nn.Module):
 
     embed_dim: int  # Output dimension
@@ -38,6 +52,56 @@ class MultiheadAttention(nn.Module):
         qkv = qkv.reshape(batch_size, seq_length, self.num_heads, -1)
         qkv = qkv.transpose(0, 2, 1, 3)  # [Batch, Head, SeqLen, Dims]
         q, k, v = jnp.array_split(qkv, 3, axis=-1)
+
+        # Determine value outputs
+        values, attention = scaled_dot_product(q, k, v, mask=mask)
+        values = values.transpose(0, 2, 1, 3)  # [Batch, SeqLen, Head, Dims]
+        values = values.reshape(batch_size, seq_length, embed_dim)
+        o = self.o_proj(values)
+
+        return o, attention
+
+
+class MultiHeadCrossAttention(nn.Module):
+
+    embed_dim: int  # Output dimension
+    num_heads: int  # Number of parallel heads (h)
+
+    def setup(self):
+        # Stack all weight matrices 1...h and W^Q, W^K, W^V together for efficiency
+        # Note that in many implementations you see "bias=False" which is optional
+        self.kv_proj = nn.Dense(
+            2 * self.embed_dim,
+            kernel_init=nn.initializers.xavier_uniform(),  # Weights with Xavier uniform init
+            bias_init=nn.initializers.zeros,  # Bias init with zeros
+        )
+        self.q_proj = nn.Dense(
+            1 * self.embed_dim,
+            kernel_init=nn.initializers.xavier_uniform(),  # Weights with Xavier uniform init
+            bias_init=nn.initializers.zeros,  # Bias init with zeros
+        )
+        self.o_proj = nn.Dense(
+            self.embed_dim,
+            kernel_init=nn.initializers.xavier_uniform(),
+            bias_init=nn.initializers.zeros,
+        )
+
+    def __call__(self, kv_inp, q_inp, mask=None):
+
+        batch_size, seq_length, embed_dim = q_inp.shape
+        if mask is not None:
+            mask = expand_mask(mask)
+        kv = self.kv_proj(kv_inp)
+        q = self.q_proj(q_inp)
+
+        # Separate K, V from linear output
+        kv = kv.reshape(batch_size, seq_length, self.num_heads, -1)
+        kv = kv.transpose(0, 2, 1, 3)  # [Batch, Head, SeqLen, Dims]
+        k, v = jnp.array_split(kv, 3, axis=-1)
+
+        # Separate Q from linear output
+        q = q.reshape(batch_size, seq_length, self.num_heads, -1)
+        q = q.transpose(0, 2, 1, 3) # [Batch, Head, SeqLen, Dims]
 
         # Determine value outputs
         values, attention = scaled_dot_product(q, k, v, mask=mask)
@@ -173,7 +237,7 @@ class TransformerPredictor(nn.Module):
         self.transformer = TransformerEncoder(
             num_layers=self.num_layers,
             input_dim=self.model_dim,
-            dim_feedforward=2 * self.model_dim,
+            dim_feedforward= 2 * self.model_dim,
             num_heads=self.num_heads,
             dropout_prob=self.dropout_prob,
         )
@@ -222,3 +286,70 @@ class TransformerPredictor(nn.Module):
         attention_maps = self.transformer.get_attention_maps(x, mask=mask, train=train)
 
         return attention_maps
+
+
+class EGNNTransformer(nn.Module):
+
+    num_edge_encoder_blocks: int
+    num_node_encoder_blocks: int
+    num_combined_encoder_blocks: int
+
+    model_dim: int
+    num_heads: int
+    dropout_prob: float
+    input_dim: int
+
+    def setup(self):
+        # Edge Encoder
+        self.edge_encoder = TransformerEncoder(
+            num_layers=self.num_edge_encoder_blocks,
+            input_dim=self.input_dim,
+            num_heads=self.num_heads,
+            dim_feedforward=self.model_dim,
+            dropout_prob=self.dropout_prob,
+        )
+        
+        # Node Encoder
+        self.node_encoder = TransformerEncoder(
+            num_layers=self.num_node_encoder_blocks,
+            input_dim=self.input_dim,
+            num_heads=self.num_heads,
+            dim_feedforward=self.model_dim,
+            dropout_prob=self.dropout_prob,
+        )
+        
+        # Combined Encoder
+        self.combined_encoder = TransformerEncoder(
+            num_layers=self.num_combined_encoder_blocks,
+            input_dim=self.input_dim,
+            num_heads=self.num_heads,
+            dim_feedforward=self.model_dim,
+            dropout_prob=self.dropout_prob,
+        )
+        
+        # Cross Attention
+        self.cross_attention = MultiHeadCrossAttention(
+            embed_dim=self.model_dim,
+            num_heads=self.num_heads,
+        )
+        
+        # Output classifier
+        self.output_net = nn.Dense(1)
+    
+    def __call__(self, edge_inputs, node_inputs, mask=None, train=True):
+        # Edge Encoder
+        edge_encoded = self.edge_encoder(edge_inputs, mask=None, train=train)
+        
+        # Node Encoder
+        node_encoded = self.node_encoder(node_inputs, mask=None, train=train)
+        
+        # Cross Attention
+        combined_inputs, _ = self.cross_attention(edge_encoded, node_encoded, mask=mask)
+        
+        # Combined Encoder
+        combined_encoded = self.combined_encoder(combined_inputs, mask=None, train=train)
+        
+        # Output classifier
+        output = self.output_net(combined_encoded)
+        
+        return output
