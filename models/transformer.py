@@ -83,7 +83,7 @@ class MultiHeadCrossAttention(nn.Module):
         # Separate K, V from linear output
         kv = kv.reshape(batch_size, seq_length, self.num_heads, -1)
         kv = kv.transpose(0, 2, 1, 3)  # [Batch, Head, SeqLen, Dims]
-        k, v = jnp.array_split(kv, 3, axis=-1)
+        k, v = jnp.array_split(kv, 2, axis=-1)
 
         # Separate Q from linear output
         q = q.reshape(batch_size, seq_length, self.num_heads, -1)
