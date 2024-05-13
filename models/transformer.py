@@ -336,6 +336,7 @@ class EGNNTransformer(nn.Module):
         # Input layer
         edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
         edge_inputs = self.input_layer_edges(edge_inputs)
+        jax.debug.print(edge_inputs)
         # Edge Encoder
         edge_encoded = self.edge_encoder(edge_inputs, mask=None, train=train)
         
