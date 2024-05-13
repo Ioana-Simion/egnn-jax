@@ -160,7 +160,7 @@ class TransformerEncoder(nn.Module):
         ]
 
     def __call__(self, x, mask=None, train=True):
-        jax.debug.print(",".join(x.shape))
+        jax.debug.print(jax.numpy.array_str(x))
         for l in self.layers:
 
             x = l(x, mask=mask, train=train)
