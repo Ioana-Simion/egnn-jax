@@ -5,7 +5,7 @@
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
-from .utils import * 
+import utils
 
 
 class MultiheadAttention(nn.Module):
@@ -31,7 +31,7 @@ class MultiheadAttention(nn.Module):
 
         batch_size, seq_length, embed_dim = x.shape
         if mask is not None:
-            mask = expand_mask(mask)
+            mask = utils.expand_mask(mask)
         qkv = self.qkv_proj(x)
 
         # Separate Q, K, V from linear output
@@ -40,7 +40,7 @@ class MultiheadAttention(nn.Module):
         q, k, v = jnp.array_split(qkv, 3, axis=-1)
 
         # Determine value outputs
-        values, attention = scaled_dot_product(q, k, v, mask=mask)
+        values, attention = utils.scaled_dot_product(q, k, v, mask=mask)
         values = values.transpose(0, 2, 1, 3)  # [Batch, SeqLen, Head, Dims]
         values = values.reshape(batch_size, seq_length, embed_dim)
         o = self.o_proj(values)
@@ -76,7 +76,7 @@ class MultiHeadCrossAttention(nn.Module):
 
         batch_size, seq_length, embed_dim = q_inp.shape
         if mask is not None:
-            mask = expand_mask(mask)
+            mask = utils.expand_mask(mask)
         kv = self.kv_proj(kv_inp)
         q = self.q_proj(q_inp)
 
@@ -90,7 +90,7 @@ class MultiHeadCrossAttention(nn.Module):
         q = q.transpose(0, 2, 1, 3) # [Batch, Head, SeqLen, Dims]
 
         # Determine value outputs
-        values, attention = scaled_dot_product(q, k, v, mask=mask)
+        values, attention = utils.scaled_dot_product(q, k, v, mask=mask)
         values = values.transpose(0, 2, 1, 3)  # [Batch, SeqLen, Head, Dims]
         values = values.reshape(batch_size, seq_length, embed_dim)
         o = self.o_proj(values)
