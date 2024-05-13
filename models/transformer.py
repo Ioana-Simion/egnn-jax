@@ -160,7 +160,7 @@ class TransformerEncoder(nn.Module):
         ]
 
     def __call__(self, x, mask=None, train=True):
-
+        jax.debug.print(jax.numpy.array_str(x.shape))
         for l in self.layers:
 
             x = l(x, mask=mask, train=train)
@@ -335,8 +335,9 @@ class EGNNTransformer(nn.Module):
 
         # Input layer
         edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
+        jax.debug.print(jax.numpy.array_str(edge_inputs))
         edge_inputs = self.input_layer_edges(edge_inputs)
-        jax.debug.print(edge_inputs)
+        jax.debug.print(jax.numpy.array_str(edge_inputs))
         # Edge Encoder
         edge_encoded = self.edge_encoder(edge_inputs, mask=None, train=train)
         
