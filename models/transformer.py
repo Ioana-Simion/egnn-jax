@@ -286,7 +286,15 @@ class EGNNTransformer(nn.Module):
     edge_input_dim: int
     node_input_dim: int
 
+    input_dropout_prob: float = 0.0
+
     def setup(self):
+
+        # Input dim -> Model dim
+        self.input_dropout = nn.Dropout(self.input_dropout_prob)
+        self.input_layer_edges = nn.Dense(self.model_dim)
+        self.input_layer_nodes = nn.Dense(self.model_dim)
+
         # Edge Encoder
         self.edge_encoder = TransformerEncoder(
             num_layers=self.num_edge_encoder_blocks,
@@ -324,9 +332,16 @@ class EGNNTransformer(nn.Module):
         self.output_net = nn.Dense(1)
     
     def __call__(self, edge_inputs, node_inputs, mask=None, train=True):
+
+        # Input layer
+        edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
+        edge_inputs = self.input_layer_edges(edge_inputs)
         # Edge Encoder
         edge_encoded = self.edge_encoder(edge_inputs, mask=None, train=train)
         
+        # Input layer
+        node_inputs = self.input_dropout(node_inputs, deterministic=not train)
+        node_inputs = self.input_layer_nodes(node_inputs)
         # Node Encoder
         node_encoded = self.node_encoder(node_inputs, mask=None, train=train)
         
