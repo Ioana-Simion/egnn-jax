@@ -74,25 +74,26 @@ class MultiHeadCrossAttention(nn.Module):
 
     def __call__(self, kv_inp, q_inp, mask=None):
 
-        batch_size, seq_length, embed_dim = q_inp.shape
+        batch_size, seq_length_q, embed_dim = q_inp.shape
+        seq_len_kv = kv_inp.shape[1]
         if mask is not None:
             mask = utils.expand_mask(mask)
         kv = self.kv_proj(kv_inp)
         q = self.q_proj(q_inp)
 
         # Separate K, V from linear output
-        kv = kv.reshape(batch_size, seq_length, self.num_heads, -1)
+        kv = kv.reshape(batch_size, seq_len_kv, self.num_heads, -1)
         kv = kv.transpose(0, 2, 1, 3)  # [Batch, Head, SeqLen, Dims]
         k, v = jnp.array_split(kv, 2, axis=-1)
 
         # Separate Q from linear output
-        q = q.reshape(batch_size, seq_length, self.num_heads, -1)
+        q = q.reshape(batch_size, seq_length_q, self.num_heads, -1)
         q = q.transpose(0, 2, 1, 3) # [Batch, Head, SeqLen, Dims]
 
         # Determine value outputs
         values, attention = utils.scaled_dot_product(q, k, v, mask=mask)
         values = values.transpose(0, 2, 1, 3)  # [Batch, SeqLen, Head, Dims]
-        values = values.reshape(batch_size, seq_length, embed_dim)
+        values = values.reshape(batch_size, seq_length_q, embed_dim)
         o = self.o_proj(values)
 
         return o, attention
