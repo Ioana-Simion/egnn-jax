@@ -298,7 +298,7 @@ class EGNNTransformer(nn.Module):
         # Edge Encoder
         self.edge_encoder = TransformerEncoder(
             num_layers=self.num_edge_encoder_blocks,
-            input_dim=self.edge_input_dim,
+            input_dim=self.model_dim,
             num_heads=self.num_heads,
             dim_feedforward=self.model_dim,
             dropout_prob=self.dropout_prob,
@@ -307,7 +307,7 @@ class EGNNTransformer(nn.Module):
         # Node Encoder
         self.node_encoder = TransformerEncoder(
             num_layers=self.num_node_encoder_blocks,
-            input_dim=self.node_input_dim,
+            input_dim=self.model_dim,
             num_heads=self.num_heads,
             dim_feedforward=self.model_dim,
             dropout_prob=self.dropout_prob,
