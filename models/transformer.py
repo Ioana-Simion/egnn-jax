@@ -308,7 +308,7 @@ class EGNNTransformer(nn.Module):
         # Combined Encoder
         self.combined_encoder = TransformerEncoder(
             num_layers=self.num_combined_encoder_blocks,
-            input_dim=self.input_dim,
+            input_dim=self.model_dim,
             num_heads=self.num_heads,
             dim_feedforward=self.model_dim,
             dropout_prob=self.dropout_prob,
