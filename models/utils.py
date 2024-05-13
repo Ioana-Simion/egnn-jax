@@ -31,10 +31,10 @@ def expand_mask(mask):
         mask.ndim >= 2
     ), "Mask must be at least 2-dimensional with seq_length x seq_length"
     if mask.ndim == 3:
-        mask = mask.unsqueeze(1)
+        mask = jnp.expand_dims(mask, 1)
 
     while mask.ndim < 4:
-        mask = mask.unsqueeze(0)
+        mask = jnp.expand_dims(mask, 0)
 
     return mask
 
