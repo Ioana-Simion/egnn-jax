@@ -5,7 +5,7 @@
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
-import utils
+from . import utils
 
 
 class MultiheadAttention(nn.Module):
