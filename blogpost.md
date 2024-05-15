@@ -35,14 +35,14 @@ In other words, translating the input set $T_g(x)$ and then applying $\varphi(T_
 
 To guarantee this property, ...
 
-<table align="center">
+<!-- <table align="center">
   <tr align="center">
       <td><img src="figures/aprox.png" width=800></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 1.</b> The Markov process of diffusing noise and denoising [5].</td>
   </tr>
-</table>
+</table> -->
 
 
 ## **<a name="discover">Equivariant Graph Neural Networks</a>**
@@ -65,10 +65,12 @@ $$\begin{align}
 & K^{l}_{n}, V^{l}_{n}, Q^{l}_{n}: \text{the keys, values of node features at layer} l.
 \end{align}$$
 
+<!-- ^Why is it only d here? - Greg -->
+
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^{p}_{e}$, $V^{p}_{e}$ and perform the following attention operation:
 
 $$\begin{align} 
-Z^{p}_{e} = softmax(Q^{p}_{e} K^{pT}_{n} + M) V^{p}_{n} / d, \qquad \qquad \text{(Equation n)}
+Z^{p}_{e} = softmax(Q^{p}_{e} K^{pT}_{n} + M) V^{p}_{n} / d, \qquad \qquad \text{(Equation 2)}
 \end{align}$$
 
 where the output $Z^{p}_{e}$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by $d$ is to normalize the output scale, a method employed by most other transfomer architectures.
@@ -76,7 +78,7 @@ where the output $Z^{p}_{e}$ is a matrix of size $n \times d$ (due to the cross-
 Now, we need to obtain the node encodings, which is done through the following: 
 
 $$\begin{align} 
-Z^{r}_{n} = softmax(Q^{r}_{n} K^{rT}_{n}) V^{n}_{r} / d, \qquad \qquad \text{(Equation n)}
+Z^{r}_{n} = softmax(Q^{r}_{n} K^{rT}_{n}) V^{n}_{r} / d, \qquad \qquad \text{(Equation 3)}
 \end{align}$$
 
 where $Z^{r}_{n}$ is the output of layer $r$, which is the encoder's last layer.
@@ -84,7 +86,7 @@ where $Z^{r}_{n}$ is the output of layer $r$, which is the encoder's last layer.
 Now that we have both the node and edge features encoded, we can simply sum these encodings to combine them together:
 
 $$\begin{align} 
-Z^{0}_{j} = Z^{p}_{e} + Z^{r}_{n}, \qquad \qquad \text{(Equation n)},
+Z^{0}_{j} = Z^{p}_{e} + Z^{r}_{n}, \qquad \qquad \text{(Equation 4)},
 \end{align}$$
 
 where $Z^{0}_{j}$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^{r}_{n}$ is the residual connection. After this operation, we continue the computation with an $h$-layer joint encoder and get the output $Z^{h}_{j}$. One final note is that we have a [CLS] token which is used for classification in the $Z^{0}_{j}$ or the $Z^{0}_{n}$ input.
