@@ -54,7 +54,40 @@ In order to make this implementation equivariant, we need to
 
 ## **<a name="architecture">Equivariant Transformers</a>**
 
-Our method of improving this architecture would be to leverage the capabilites of transformers [cite Vaswani again]. ...
+Our method of improving this architecture would be to leverage the capabilites of transformers \[6\]. The key difference between these and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited , though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
+
+As our contribution to the field, we introduce a dual encoder system. The first one contains all the node features and normalized distances to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
+
+To explain this approach, we first need to define the following components:
+
+$$\begin{align}
+& K^{l}_{e}, V^{l}_{e}: \text{the keys, values of edge features at layer} l. \\
+& K^{l}_{n}, V^{l}_{n}, Q^{l}_{n}: \text{the keys, values of node features at layer} l.
+\end{align}$$
+
+Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^{p}_{e}$, $V^{p}_{e}$ and perform the following attention operation:
+
+$$\begin{align}
+Z^{p}_{e} = softmax(Q^{p}_{e} K^{pT}_{n} + M) V^{p}_{n} / d, \qquad \qquad \text{(Equation _)} % I'm confused; why d instead of sqrt d here? - Greg
+\end{align}$$
+
+where the output $Z^{p}_{e}$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by $d$ is to normalize the output scale, a method employed by most other transfomer architectures.
+
+Now, we need to obtain the node encodings, which is done through the following: 
+
+$$\begin{align}
+Z^{r}_{n} = softmax(Q^{r}_{n} K^{rT}_{n}) V^{n}_{r} / d, \qquad \qquad \text{(Equation _)}
+\end{align}$$
+
+where $Z^{r}_{n}$ is the output of layer $r$, which is the encoder's last layer.
+
+Now that we have both the node and edge features encoded, we can simply sum these encodings to combine them together:
+
+$$\begin{align}
+Z^{0}_{j} = Z^{p}_{e} + Z^{r}_{n} \qquad \qquad \text{(Equation _)},
+\end{align}$$
+
+where $Z^{0}_{j}$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^{r}_{n}$ is the residual connection. After this operation, we continue the computation with an $h$-layer joint encoder and get the output $Z^{h}_{j}$. One final note is that we have a [CLS] token which is used for classification in the $Z^{0}_{j}$ or the $Z^{0}_{n}$ input.
 
 
 ## **<a name="architecture">Evaluating the Models</a>**
@@ -209,3 +242,7 @@ To evaluate the performance of the models, ...
 [4] Gori, M., Monfardini, G., & Scarselli, F. (2005). A new model for learning in graph domains. Proceedings. 2005 IEEE International Joint Conference on Neural Networks, 2(2), 729-734.
 
 [5] Satorras, V. G., Hoogeboom, E., & Welling, M. (2021). E(n) Equivariant Graph Neural Networks. In Proceedings of the 38th International Conference on Machine Learning, 139. https://doi.org/10.48550/ARXIV.2102.09844
+
+[6] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., … Polosukhin, I. (2017). Attention is All you Need. In I. Guyon, U. V. Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, & R. Garnett (Eds.), Advances in Neural Information Processing Systems, 30.
+
+[7] Thölke, P., & De Fabritiis, G. (2022). Equivariant Transformers for Neural Network based Molecular Potentials. In International Conference on Learning Representations.
