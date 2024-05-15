@@ -28,7 +28,7 @@ QM9 [citation here] dataset.
 Given a set of $T_g$ transformations on $X$ ($T_g: X \rightarrow X$) for an abstract group $g \in G$, a function $\varphi: X \rightarrow Y$ is equivariant to $g$ if an equivalent transformation exists on its output space $S_g: Y \rightarrow Y$ such that:
 
 $$\begin{align} 
-\varphi(T_g(x)) = S_g(\varphi(x)) \qquad \qquad \text{(Equation 1)}
+\varphi(T_g(x)) = S_g(\varphi(x)). \qquad \qquad \text{(Equation 1)}
 \end{align}$$
 
 In other words, translating the input set $T_g(x)$ and then applying $\varphi(T_x(x))$ on it yields the same result as first running the function $y = \varphi(x)$ and then applying an equivalent translation to the output $T_g(y)$ such that Equation 1 is fulfilled and $\varphi(x+g) = \varphi(x) + g$ \[5\].
@@ -68,7 +68,7 @@ $$\begin{align}
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^{p}_{e}$, $V^{p}_{e}$ and perform the following attention operation:
 
 $$\begin{align}
-Z^{p}_{e} = softmax(Q^{p}_{e} K^{pT}_{n} + M) V^{p}_{n} / d, \qquad \qquad \text{(Equation _)} % I'm confused; why d instead of sqrt d here? - Greg
+Z^{p}_{e} = softmax(Q^{p}_{e} K^{pT}_{n} + M) V^{p}_{n} / d, \qquad \qquad \text{(Equation _)}
 \end{align}$$
 
 where the output $Z^{p}_{e}$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by $d$ is to normalize the output scale, a method employed by most other transfomer architectures.
