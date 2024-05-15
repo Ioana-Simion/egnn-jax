@@ -60,14 +60,14 @@ As our contribution to the field, we introduce a dual encoder system. The first 
 
 To explain this approach, we first need to define the following components:
 
-$$\begin{align}
+$$\begin{align} 
 & K^{l}_{e}, V^{l}_{e}: \text{the keys, values of edge features at layer} l. \\
 & K^{l}_{n}, V^{l}_{n}, Q^{l}_{n}: \text{the keys, values of node features at layer} l.
 \end{align}$$
 
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^{p}_{e}$, $V^{p}_{e}$ and perform the following attention operation:
 
-$$\begin{align}
+$$\begin{align} 
 Z^{p}_{e} = softmax(Q^{p}_{e} K^{pT}_{n} + M) V^{p}_{n} / d, \qquad \qquad \text{(Equation n)}
 \end{align}$$
 
@@ -75,7 +75,7 @@ where the output $Z^{p}_{e}$ is a matrix of size $n \times d$ (due to the cross-
 
 Now, we need to obtain the node encodings, which is done through the following: 
 
-$$\begin{align}
+$$\begin{align} 
 Z^{r}_{n} = softmax(Q^{r}_{n} K^{rT}_{n}) V^{n}_{r} / d, \qquad \qquad \text{(Equation n)}
 \end{align}$$
 
@@ -83,7 +83,7 @@ where $Z^{r}_{n}$ is the output of layer $r$, which is the encoder's last layer.
 
 Now that we have both the node and edge features encoded, we can simply sum these encodings to combine them together:
 
-$$\begin{align}
+$$\begin{align} 
 Z^{0}_{j} = Z^{p}_{e} + Z^{r}_{n}, \qquad \qquad \text{(Equation n)},
 \end{align}$$
 
