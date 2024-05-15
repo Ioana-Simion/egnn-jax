@@ -28,7 +28,7 @@ QM9 [citation here] dataset.
 Given a set of $T_g$ transformations on $X$ ($T_g: X \rightarrow X$) for an abstract group $g \in G$, a function $\varphi: X \rightarrow Y$ is equivariant to $g$ if an equivalent transformation exists on its output space $S_g: Y \rightarrow Y$ such that:
 
 $$\begin{align} 
-\[\varphi(T_g(x)) = S_g(\varphi(x))\] \text{(Equation 1)}
+\varphi(T_g(x)) = S_g(\varphi(x)) \qquad \qquad \text{(Equation 1)}
 \end{align}$$
 
 In other words, translating the input set $T_g(x)$ and then applying $\varphi(T_x(x))$ on it yields the same result as first running the function $y = \varphi(x)$ and then applying an equivalent translation to the output $T_g(y)$ such that Equation 1 is fulfilled and $\varphi(x+g) = \varphi(x) + g$ \[5\].
