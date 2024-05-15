@@ -61,8 +61,8 @@ As our contribution to the field, we introduce a dual encoder system. The first 
 To explain this approach, we first need to define the following components:
 
 $$\begin{align} 
-& K^{l}_{e}, V^{l}_{e}: \text{the keys, values of edge features at layer} l. \\
-& K^{l}_{n}, V^{l}_{n}, Q^{l}_{n}: \text{the keys, values of node features at layer} l.
+& K^l_e, V^l_e: \text{the keys, values of edge features at layer} l. \\
+& K^l_n, V^l_n, Q^l_n: \text{the keys, values of node features at layer} l.
 \end{align}$$
 
 <!-- ^Why is it only d here? - Greg -->
@@ -70,7 +70,7 @@ $$\begin{align}
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^{p}_{e}$, $V^{p}_{e}$ and perform the following attention operation:
 
 $$\begin{align} 
-Z^{p}_{e} = softmax(Q^{p}_{e} K^{pT}_{n} + M) V^{p}_{n} / d, \qquad \qquad \text{(Equation 2)}
+Z^p_e = softmax(Q^p_e K^pT_n + M) V^p_n / d, \qquad \qquad \text{(Equation 2)}
 \end{align}$$
 
 where the output $Z^{p}_{e}$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by $d$ is to normalize the output scale, a method employed by most other transfomer architectures.
