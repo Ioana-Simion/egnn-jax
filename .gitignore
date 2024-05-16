@@ -3,5 +3,11 @@ dataset/qm9
 qm9/__pycache__
 utils/__pycache__
 models/__pycache__
+n_body/__pycache__
+n_body/dataset/__pycache__
+
+# Ignore the data (size issues on GitHub)
+qm9/data
+n_body/dataset/data
 
 .idea

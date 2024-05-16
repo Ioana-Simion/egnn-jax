@@ -71,8 +71,6 @@ $$\begin{align}
 Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt(d)}, \qquad \qquad \text{(Equation 2)}
 \end{align}$$
 
-<!-- ^Why is it only d here? - Greg -->
-
 where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by the dimension size $\sqrt(d)$ is to normalize the output scale, a method employed by most other transfomer architectures.
 
 Now, we need to obtain the node encodings, which is done through the following: 
