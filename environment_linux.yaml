@@ -1,0 +1,19 @@
+name: egnn-transformer
+channels:
+  - pytorch
+  - conda-forge
+  - anaconda
+  - defaults
+  - nvidia # Only if you have CUDA-support
+dependencies:
+  - pytorch
+  - pytorch-cuda # Only if you have CUDA-support
+  - nvidia::cudatoolkit # Only if you have CUDA-support
+  - tqdm
+  - lightning
+  - rdkit
+  - pyg
+  - flax
+  - pip
+  - pip:
+    - "jax[cuda]"

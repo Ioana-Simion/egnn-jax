@@ -1,16 +1,12 @@
 name: egnn-transformer
 channels:
   - pytorch
-  - conda-forge
   - anaconda
+  - conda-forge
   - defaults
 dependencies:
   - pytorch
   - tqdm
   - lightning
-  - rdkit
-  - pip
-  - pip:
-    - "jax[cpu]"
-    - torch_geometric
-    - flax
+  - jax
+  - flax
