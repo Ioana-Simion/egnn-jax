@@ -68,20 +68,20 @@ $$\begin{align}
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^p_e$, $V^p_e$ and perform the following attention operation:
 
 $$\begin{align} 
-Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{d}, \qquad \qquad \text{(Equation 2)}
+Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt(d)}, \qquad \qquad \text{(Equation 2)}
 \end{align}$$
 
 <!-- ^Why is it only d here? - Greg -->
 
-where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by the dimension size $d$ is to normalize the output scale, a method employed by most other transfomer architectures.
+where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by the dimension size $\sqrt(d)$ is to normalize the output scale, a method employed by most other transfomer architectures.
 
 Now, we need to obtain the node encodings, which is done through the following: 
 
 $$\begin{align} 
-Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{d}, \qquad \qquad \text{(Equation 3)}
+Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{\sqrt(d)}, \qquad \qquad \text{(Equation 3)}
 \end{align}$$
 
-where $Z^r_n$ is the output of layer $r$, which is the encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $d$.
+where $Z^r_n$ is the output of layer $r$, which is the encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $\sqrt(d)$.
 
 Now that we have both the node and edge features encoded, we can simply sum these encodings to combine them together:
 
