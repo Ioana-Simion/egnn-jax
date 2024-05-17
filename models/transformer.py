@@ -1,6 +1,6 @@
-# Note: Thus far I've just taken the JAX transformer from the UVADLC notebook
-# With some adjustments
-# - Greg
+# The contents of this file are mostly taken from:
+# https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
+# It has here been adapted into an EGNN framework.
 
 import jax
 import jax.numpy as jnp
@@ -88,7 +88,7 @@ class MultiHeadCrossAttention(nn.Module):
 
         # Separate Q from linear output
         q = q.reshape(batch_size, seq_length_q, self.num_heads, -1)
-        q = q.transpose(0, 2, 1, 3) # [Batch, Head, SeqLen, Dims]
+        q = q.transpose(0, 2, 1, 3)  # [Batch, Head, SeqLen, Dims]
 
         # Determine value outputs
         values, attention = utils.scaled_dot_product(q, k, v, mask=mask)
@@ -223,7 +223,7 @@ class TransformerPredictor(nn.Module):
         self.transformer = TransformerEncoder(
             num_layers=self.num_layers,
             input_dim=self.model_dim,
-            dim_feedforward= 2 * self.model_dim,
+            dim_feedforward=2 * self.model_dim,
             num_heads=self.num_heads,
             dropout_prob=self.dropout_prob,
         )
@@ -303,7 +303,7 @@ class EGNNTransformer(nn.Module):
             dim_feedforward=self.model_dim,
             dropout_prob=self.dropout_prob,
         )
-        
+
         # Node Encoder
         self.node_encoder = TransformerEncoder(
             num_layers=self.num_node_encoder_blocks,
@@ -312,7 +312,7 @@ class EGNNTransformer(nn.Module):
             dim_feedforward=self.model_dim,
             dropout_prob=self.dropout_prob,
         )
-        
+
         # Combined Encoder
         self.combined_encoder = TransformerEncoder(
             num_layers=self.num_combined_encoder_blocks,
@@ -321,16 +321,16 @@ class EGNNTransformer(nn.Module):
             dim_feedforward=self.model_dim,
             dropout_prob=self.dropout_prob,
         )
-        
+
         # Cross Attention
         self.cross_attention = MultiHeadCrossAttention(
             embed_dim=self.model_dim,
             num_heads=self.num_heads,
         )
-        
+
         # Output classifier
         self.output_net = nn.Dense(1)
-    
+
     def __call__(self, edge_inputs, node_inputs, mask=None, train=True):
 
         # Input layer
@@ -338,20 +338,22 @@ class EGNNTransformer(nn.Module):
         edge_inputs = self.input_layer_edges(edge_inputs)
         # Edge Encoder
         edge_encoded = self.edge_encoder(edge_inputs, mask=None, train=train)
-        
+
         # Input layer
         node_inputs = self.input_dropout(node_inputs, deterministic=not train)
         node_inputs = self.input_layer_nodes(node_inputs)
         # Node Encoder
         node_encoded = self.node_encoder(node_inputs, mask=None, train=train)
-        
+
         # Cross Attention
         combined_inputs, _ = self.cross_attention(edge_encoded, node_encoded, mask=mask)
-        
+
         # Combined Encoder
-        combined_encoded = self.combined_encoder(combined_inputs, mask=None, train=train)
-        
+        combined_encoded = self.combined_encoder(
+            combined_inputs, mask=None, train=train
+        )
+
         # Output classifier
         output = self.output_net(combined_encoded)
-        
+
         return output
