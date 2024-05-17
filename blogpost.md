@@ -83,7 +83,7 @@ $$\begin{align}
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^p_e$, $V^p_e$ and perform the following attention operation:
 
 $$\begin{align} 
-Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt(d)}, \qquad \qquad \text{(Equation 2)}
+Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt(d)}, \qquad \qquad \text{(Equation 9)}
 \end{align}$$
 
 where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by the dimension size $\sqrt(d)$ is to normalize the output scale, a method employed by most other transfomer architectures.
@@ -91,7 +91,7 @@ where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-atte
 Now, we need to obtain the node encodings, which is done through the following: 
 
 $$\begin{align} 
-Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{\sqrt(d)}, \qquad \qquad \text{(Equation 3)}
+Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{\sqrt(d)}, \qquad \qquad \text{(Equation 10)}
 \end{align}$$
 
 where $Z^r_n$ is the output of layer $r$, which is the encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $\sqrt(d)$.
@@ -99,7 +99,7 @@ where $Z^r_n$ is the output of layer $r$, which is the encoder's last layer. Als
 Now that we have both the node and edge features encoded, we can simply sum these encodings to combine them together:
 
 $$\begin{align} 
-Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 4)}
+Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 11)}
 \end{align}$$
 
 where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. After this operation, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token which is used for classification in the $Z^0_j$ or the $Z^0_n$ input.
