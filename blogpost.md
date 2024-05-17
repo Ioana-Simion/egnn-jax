@@ -60,7 +60,7 @@ In order to make this implementation equivariant, \[5\] introduced the inputting
 
 $$\begin{align} 
 & \mathbf{m}\_{ij} &= \varphi_e (\mathbf{h}\_i^l, \mathbf{h}\_j^l, ||\mathbf{x}\_i^l - \mathbf{x}\_j^l||^2, a_{ij}), \qquad \qquad \text{(Equation 5)} \\
-& x_i^{l+1} &= x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) (\mathbf{m}\_{ij}) \varphi_x  \qquad \qquad \text{(Equation 6)}.
+& x_i^{l+1} &= x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) (\mathbf{m}\_{ij}) \varphi_x  \qquad \qquad \text{(Equation 6)}. \\
 & \mathbf{m}\_{i} &= \sum_{j \in \mathcal{N}\_i } \mathbf{m}\_j, \qquad \qquad \text{(Equation 7)} \\
 & \mathbf{h}\_i^{l+1} &= \varphi_h (\mathbf{h}\_i^l, \mathbf{m}\_i), \qquad \qquad \text{(Equation 8)}.
 \end{align}$$
