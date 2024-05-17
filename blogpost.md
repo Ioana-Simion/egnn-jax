@@ -15,11 +15,13 @@ This blogpost serves three purposes:
 
 ## **Equivariance in Neural Networks**
 
-As equivariance is prevalent in the natural sciences \[1, 2, 3\], it makes sense to utilize them for our neural networks, especially given the evidence suggesting that it significantly improves performance through increasing the network's generalizability \[8\]. Because of this, various techniques have been created based on this idea \[9, 10, 11\] and are still being expanded upon. 
+As equivariance is prevalent in the natural sciences \[1, 2, 3, 11, 17\], it makes sense to utilize them for our neural networks, especially given the evidence suggesting that it significantly improves performance through increasing the network's generalizability \[8\]. One large area within this subfield of deep learning is learning 3D translation and rotation symmetries, where various techniques have been created such as Graph Convolutional Neural Networks \[9\] and Tensor Field Networks \[10\].
 
-As a baseline, we compare our methods to varying architectures, with the first being the Graph Neural Network (GNN). It was introduced to bridge the gap between deep learning and graph processing as it operates within the graph domain \[4, 15, 16\]. Here, we compare our method to that of \[5\], as it is a GNN implementation which inputs the relative squared distance between two coordinates into the edge operation. This method bypasses any expensive computations/approximations in comparison while retaining high performance levels, making it preferable compared to most other GNN architectures.
+Following these works, more efficient implementations have emerged, with the first being the Equivariant Graph Neural Network (EGNN) \[5\]. Based on the GNN \[4, 15, 16\], which follows a message passing scheme, it innovates by inputting the relative squared distance between two coordinates into the edge operation. This specific method bypasses any expensive computations/approximations relative to other, similar methods while retaining high performance levels, making it preferable compared to most other GNN architectures.
 
-For all the aforementioned methods, we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data.
+More recently, though, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness to such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches.
+
+Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately. This provides a novel benefit in the form of ...
 
 
 ## **<a name="recap">Recap of Equivariance</a>**
@@ -107,7 +109,10 @@ where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternat
 
 ## **<a name="architecture">Evaluating the Models</a>**
 
-To evaluate the performance of the models, ...
+As a baseline, we compare our dual encoder transformer to varying architectures, with the first being from \[5\] as it is generally the best performing model. In addition, we also show the baseline performance reported in QM9 to show how our transformer fares with other transformer methods, specifically compared with that of \[7\] as it outperforms many other implementations in the benchmarks tasks (i.e., QM9) due to utilizing radial basis functions to expand the interatomic distances and adjusting the transformer operations to acommodate to these modified distances naturally.
+<!-- This is just an idea, because I'm not sure if we'll have enough time to handle running the other transformers. - Greg -->
+
+For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data.
 
 ## **<a name="reproduction">Reproduction of the Experiments</a>**
 
@@ -279,3 +284,13 @@ To evaluate the performance of the models, ...
 [15] Bruna, J., Zaremba, W., Szlam, A., & Lecun, Y. (2014). Spectral networks and locally connected networks on graphs. In International Conference on Learning Representations (ICLR2014), CBLS.
 
 [16] Kipf, T. N., & Welling, M. (2016). Semi-supervised classification with graph convolutional networks. CoRR, abs/1609.02907. http://arxiv.org/abs/1609.02907
+
+[17] Ramakrishnan, R., Dral, P. O., Rupp, M., & von Lilienfeld, O. A. (2014). Quantum chemistry structures and properties of 134 kilo molecules. In Scientific Data (Vol. 1, Issue 1). Springer Science and Business Media LLC. https://doi.org/10.1038/sdata.2014.22 
+
+[18] Fuchs, F. B., Worrall, D. E., Fischer, V., & Welling, M. (2020). SE(3)-transformers: 3D roto-translation equivariant attention networks. Proceedings of the 34th International Conference on Neural Information Processing Systems.
+
+[19] Liao, Y.-L., & Smidt, T. (2023). EQUIFORMER: Equivariant graph attention transformer for 3D atomistic graphs. Proceedings of the International Conference on Learning Representations (ICLR).
+
+[20] Devlin, J., Chang, M., Lee, K., & Toutanova, K. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. North American Chapter of the Association for Computational Linguistics. 
+
+[21] Baevski, A., Zhou, H., Mohamed, A., & Auli, M. (2020). wav2vec 2.0: A framework for self-supervised learning of speech representations. Proceedings of the 34th International Conference on Neural Information Processing Systems.
