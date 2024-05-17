@@ -4,26 +4,25 @@
 
 ---
 
-In this blog post, we discuss and extend on the findings of the PMLR 2021 paper titled ["E(n) Equivariant Graph Neural Networks"](http://proceedings.mlr.press/v139/satorras21a/satorras21a.pdf). This paper introduces a more efficient way of implementing equivariance in graph neural networks, which we adapt for transformer architectures. While equivariant transformers do already exist, we propose a novel method of leveraging these equivariances which plays into the transformer's strengths.
+This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately. This allows for more flexibility in the inputs we provide.
 
 This blogpost serves three purposes: 
-1. Explain the fundamental ideas of equivariance for neural networks introduced by Satorras et al. (2021).
-2. Verify the authors' claims by reproducing their results.
-3. Give an overview of our transformed-based method.
+1. Explain the ideas of equivariance in transformer networks while also explaining some of the methods used.
+2. Providing an overview of some reproduction results for other methods (i.e., the Equivariant Graph Neural Network).
+3. Give an overview of our method and a comparison with the aforementioned reproduction results.
 
 ---
 
 ## **Equivariance in Neural Networks**
 
-As equivariance is prevalent in the natural sciences \[1, 2, 3\], it makes sense to utilize them for our neural networks. This is not a straightforward process, however, as encoding the positions directly does not guarantee that the network learns these geometric patterns properly and efficiently [citation here]. Because of this, most methods use either invariant geometric information (i.e., between-point distances [citation here]) or covariant information (i.e., with steerable functions [citation here]). 
+As equivariance is prevalent in the natural sciences \[1, 2, 3\], it makes sense to utilize them for our neural networks, especially given the evidence suggesting that it significantly improves performance through increasing the network's generalizability \[8\]. Because of this, various techniques have been created based on this idea \[9, 10, 11\] and are still being expanded upon. 
 
-With an origin spanning a few decades, Graph Neural Networks (GNNs) were introduced which bridged the gap between deep learning and graph processing \[4\]. However, compared to other similar methods at the time, Satorras et al. (2021) introduce the idea of inputting the relative squared distance between two coordinates into the edge operation. This allows their method to bypass any expensive computations/approximations in comparison while retaining high performance levels.
+As a baseline, we compare our methods to varying architectures, with the first being the Graph Neural Network (GNN). It was introduced to bridge the gap between deep learning and graph processing as it operates within the graph domain \[4, 15, 16\]. Here, we compare our method to that of \[5\], as it is a GNN implementation which inputs the relative squared distance between two coordinates into the edge operation. This method bypasses any expensive computations/approximations in comparison while retaining high performance levels, making it preferable compared to most other GNN architectures.
 
-To test the performance of their algorithm, we reproduce their main results, both qualitative and quantitative, on the 
-QM9 [citation here] dataset.
+For all the aforementioned methods, we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data.
 
 
-## **<a name="equiv">Equivariance</a>**
+## **<a name="recap">Recap of Equivariance</a>**
 
 Given a set of $T_g$ transformations on $X$ ($T_g: X \rightarrow X$) for an abstract group $g \in G$, a function $\varphi: X \rightarrow Y$ is equivariant to $g$ if an equivalent transformation exists on its output space $S_g: Y \rightarrow Y$ such that:
 
@@ -32,8 +31,6 @@ $$\begin{align}
 \end{align}$$
 
 In other words, translating the input set $T_g(x)$ and then applying $\varphi(T_x(x))$ on it yields the same result as first running the function $y = \varphi(x)$ and then applying an equivalent translation to the output $T_g(y)$ such that Equation 1 is fulfilled and $\varphi(x+g) = \varphi(x) + g$ \[5\].
-
-To guarantee this property, ...
 
 <!-- <table align="center">
   <tr align="center">
@@ -45,12 +42,30 @@ To guarantee this property, ...
 </table> -->
 
 
-## **<a name="discover">Equivariant Graph Neural Networks</a>**
+## **<a name="gnns">Equivariant Graph Neural Networks</a>**
 
-The standard GNN implementation is generally the following:
+For a given graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ with nodes $v_i \in \mathcal{V}$ and edges
+$=e_{ij} \in \mathcal{E}$, we can define a graph convolutional layer as the following:
 
+$$\begin{align} 
+& \mathbf{m}_{ij} &= \varphi_e (\mathbf{h}_i^l, \mathbf{h}_j^l, a_{ij}), \qquad \qquad \text{(Equation 2)} \\
+& \mathbf{m}_{i} &= \sum_{j \in \mathcal{N}_i } \mathbf{m}_j, \qquad \qquad \text{(Equation 3)} \\
+& \mathbf{h}_i^{l+1} &= \varphi_h (\mathbf{h}_i^l, \mathbf{m}_i), \qquad \qquad \text{(Equation 4)}.
+\end{align}$$
 
-In order to make this implementation equivariant, we need to  
+where $\mathbf{h}_i^l \in \mathbb{R}^{nf}$ nf is the nf-dimensional embedding of node $v_i$ at layer l$$, $a_{ij}$ are the edge attributes, $\mathcal{N}_i$ is the set of neighbors of node $v_i$, and $\varphi_e$ and $\varphi_h$ are the
+edge and node operations respectively, typically approximated by Multilayer Perceptrons (MLPs).
+
+In order to make this implementation equivariant, \[5\] introduced the inputting of the relative squared distances between two points and updating of the node positions at each time step, leading to the following formulae:
+
+$$\begin{align} 
+& \mathbf{m}_{ij} &= \varphi_e (\mathbf{h}_i^l, \mathbf{h}_j^l, ||\mathbf{x}_i^l - \mathbf{x}_j^l||^2, a_{ij}), \qquad \qquad \text{(Equation 5)} \\
+& x_i^{l+1} &= x_i^l + C \sum_{j \neq i} (\mathbf{x}_i^l - \mathbf{x}_j^l) (\mathbf{m}_{ij}) \varphi_x  \qquad \qquad \text{(Equation 6)}.
+& \mathbf{m}_{i} &= \sum_{j \in \mathcal{N}_i } \mathbf{m}_j, \qquad \qquad \text{(Equation 7)} \\
+& \mathbf{h}_i^{l+1} &= \varphi_h (\mathbf{h}_i^l, \mathbf{m}_i), \qquad \qquad \text{(Equation 8)}.
+\end{align}$$
+
+This idea of using the distances during computation forms one of the bases of our proposed transformer architecture, as it is a simple yet effective way to impose geometric equivariance within a system.
 
 ## **<a name="architecture">Equivariant Transformers</a>**
 
@@ -246,3 +261,21 @@ To evaluate the performance of the models, ...
 [6] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., … Polosukhin, I. (2017). Attention is All you Need. In I. Guyon, U. V. Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, & R. Garnett (Eds.), Advances in Neural Information Processing Systems, 30.
 
 [7] Thölke, P., & De Fabritiis, G. (2022). Equivariant Transformers for Neural Network based Molecular Potentials. In International Conference on Learning Representations.
+
+[8] Bronstein, M.M., Bruna, J., Cohen, T., & Veličković, P. (2021). Geometric Deep Learning: Grids, Groups, Graphs, Geodesics, and Gauges. ArXiv, abs/2104.13478.
+
+[9] Cohen, T. & Welling, M. (2016). Group Equivariant Convolutional Networks. Proceedings of The 33rd International Conference on Machine Learning. https://proceedings.mlr.press/v48/cohenc16.html.
+
+[10] Thomas, N., Smidt, T.E., Kearnes, S.M., Yang, L., Li, L., Kohlhoff, K., & Riley, P.F. (2018). Tensor Field Networks: Rotation- and Translation-Equivariant Neural Networks for 3D Point Clouds. ArXiv, abs/1802.08219.
+
+[11] Maron, H., Litany, O., Chechik, G. & Fetaya, E. (2020). On Learning Sets of Symmetric Elements. roceedings of the 37th International Conference on Machine Learning. https://proceedings.mlr.press/v119/maron20a.html.
+
+[12] Blum, L. C., & Reymond, J.-L. (2009). 970 million druglike small molecules for virtual screening in the chemical universe database GDB-13. Journal of the American Chemical Society, 131(25), 8732–8733. https://doi.org/10.1021/ja902302h 
+
+[13] Montavon, G., Rupp, M., Gobre, V., Vazquez-Mayagoitia, A., Hansen, K., Tkatchenko, A., Müller, K.-R., & von Lilienfeld, O. A. (2013). Machine learning of molecular electronic properties in chemical compound space. New Journal of Physics, 15(9), 095003. http://stacks.iop.org/1367-2630/15/i=9/a=095003
+
+[14] Kipf, T., Fetaya, E., Wang, K., Welling, M. & Zemel, R. (2018). Neural Relational Inference for Interacting Systems. Proceedings of the 35th International Conference on Machine Learning. https://proceedings.mlr.press/v80/kipf18a.html.
+
+[15] Bruna, J., Zaremba, W., Szlam, A., & Lecun, Y. (2014). Spectral networks and locally connected networks on graphs. In International Conference on Learning Representations (ICLR2014), CBLS.
+
+[16] Kipf, T. N., & Welling, M. (2016). Semi-supervised classification with graph convolutional networks. CoRR, abs/1609.02907. http://arxiv.org/abs/1609.02907
