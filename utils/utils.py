@@ -38,9 +38,16 @@ def get_model(args: Namespace) -> nn.Module:
 def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """Return dataloaders based on dataset."""
     if args.dataset == "qm9":
-        from qm9.utils import generate_loaders_qm9
+        from torch_geometric.datasets import QM9
+        import torch_geometric.transforms as T
+        # Distance transform handles distances between atoms
+        dataset = QM9(root='data/QM9', pre_transform=T.Distance())
+        num_train = 100000
+        num_val = 10000
 
-        train_loader, val_loader, test_loader = generate_loaders_qm9(args)
+        train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True)
+        val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size)
+        test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size)
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
     else:
