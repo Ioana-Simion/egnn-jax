@@ -1,6 +1,7 @@
 # This script has been modified to return JAX arrays instead of torch Tensors.
 import numpy as np
 import jax.numpy as jnp
+import torch
 
 
 class NBodyDataset:
@@ -37,11 +38,9 @@ class NBodyDataset:
         return (loc, vel, edge_attr, charges), edges
 
     def preprocess(self, loc, vel, edges, charges):
-        # cast to jax arrays and swap n_nodes <--> n_features dimensions
-        loc, vel = jnp.array(loc).transpose((0, 1, 3, 2)), jnp.array(vel).transpose(
-            (0, 1, 3, 2)
-        )
-        n_nodes = loc.shape[2]
+        # cast to torch and swap n_nodes <--> n_features dimensions
+        loc, vel = torch.Tensor(loc).transpose(2, 3), torch.Tensor(vel).transpose(2, 3)
+        n_nodes = loc.size(2)
         loc = loc[0 : self.max_samples, :, :, :]  # limit number of samples
         vel = vel[0 : self.max_samples, :, :, :]  # speed when starting the trajectory
         charges = charges[0 : self.max_samples]
@@ -56,17 +55,16 @@ class NBodyDataset:
                     rows.append(i)
                     cols.append(j)
         edges = [rows, cols]
-        edge_attr = jnp.array(edge_attr).transpose(
-            (1, 0)
-        )  # swap n_nodes <--> batch_size and add nf dimension
-        edge_attr = jnp.expand_dims(edge_attr, axis=2)
+        # swap n_nodes <--> batch_size and add nf dimension
+        edge_attr = np.array(edge_attr)
+        edge_attr = torch.Tensor(edge_attr).transpose(0, 1).unsqueeze(2)
 
         return (
-            jnp.array(loc),
-            jnp.array(vel),
-            jnp.array(edge_attr),
+            torch.Tensor(loc),
+            torch.Tensor(vel),
+            torch.Tensor(edge_attr),
             edges,
-            jnp.array(charges),
+            torch.Tensor(charges),
         )
 
     def set_max_samples(self, max_samples):
