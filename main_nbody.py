@@ -44,12 +44,12 @@ def save_model(model, params, model_path, model_name):
         model_path - Path of the checkpoint directory
         model_name - Name of the model (str)
     """
-    config_dict = {'hidden_sizes': model.hidden_sizes,
-                   'num_classes': model.num_classes}
+    #config_dict = {'hidden_sizes': model.hidden_sizes,
+    #               'num_classes': model.num_classes}
     os.makedirs(model_path, exist_ok=True)
     config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(model_path, model_name)
-    with open(config_file, "w") as f:
-        json.dump(config_dict, f)
+    #with open(config_file, "w") as f:
+    #    json.dump(config_dict, f)
     # You can also use flax's checkpoint package. To show an alternative,
     # you can instead save the parameters simply in a pickle file.
     with open(model_file, 'wb') as f:
@@ -88,14 +88,13 @@ def load_model(model_path, model_name, state=None):
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update"])
 def update(
     params,
-    graph: jraph.GraphsTuple,
-    props: Dict[str, jnp.ndarray],
+    feat,
     target: jnp.ndarray,
     opt_state: optax.OptState,
     loss_fn: Callable,
     opt_update: Callable
 ):
-    loss, grads = jax.value_and_grad(loss_fn)(params, graph, props, target)
+    loss, grads = jax.value_and_grad(loss_fn)(params, feat, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
@@ -103,16 +102,15 @@ def update(
 @partial(jax.jit, static_argnames=["model_fn"])
 def mse(
     params,
-    graph: jraph.GraphsTuple,
-    props: Dict[str, jnp.ndarray],
+    feat,
     target: jnp.ndarray,
     model_fn: Callable,
 ):
+    # pred is tuple h,x
     pred = model_fn(
         params,
-        graph,
-        **props,
-    )
+        *feat,
+    )[1]
     return (jnp.power(pred - target, 2)).mean()
 
 
@@ -124,8 +122,8 @@ def evaluate(
 ) -> float:
     eval_loss = 0.0
     for data in loader:
-        graph, props, target = graph_transform(data)
-        loss = jax.lax.stop_gradient(loss_fn(params, graph, props, target))
+        feat, target = graph_transform(data)
+        loss = jax.lax.stop_gradient(loss_fn(params, feat, target))
         eval_loss += jax.block_until_ready(loss)
     return eval_loss / len(loader)
 
@@ -170,7 +168,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     # # Get loaders
     train_loader, val_loader, test_loader = get_loaders(args)
 
-    init_graph, init_props, _ = graph_transform(next(iter(train_loader)))
+    init_feat, _ = graph_transform(next(iter(train_loader)))
 
     # Get optimization objects
     #state = train_state.TrainState.create(
@@ -181,10 +179,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         learning_rate=args.lr, weight_decay=args.weight_decay
     )
 
-    print(init_props)
-    exit()
-
-    params = model.init(jax_seed, init_graph, **init_props)
+    params = model.init(jax_seed, *init_feat)
 
     loss_fn = partial(mse, model_fn=model.apply)
     update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
@@ -222,11 +217,10 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         ############
         train_loss, val_loss = 0, 0
         for batch in tqdm(train_loader.dataset, desc=f"Epoch {epoch+1}", leave=False):
-            graph, props, target = graph_transform(batch)
+            feat, target = graph_transform(batch)
             loss, params, opt_state = update_fn(
                 params=params,
-                graph=graph,
-                props=props,
+                feat=feat,
                 target=target,
                 opt_state=opt_state
             )
