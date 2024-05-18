@@ -8,14 +8,15 @@ import torch.nn as nn
 from typing import Tuple
 from argparse import Namespace
 from torch_geometric.loader import DataLoader
+from n_body import get_nbody_dataloaders
 
 
 def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
     if args.dataset == "qm9":
-        # num_input = 15
         num_out = 1
-
+    elif args.dataset == "charged":
+        num_out = 3
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -40,6 +41,8 @@ def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
         from qm9.utils import generate_loaders_qm9
 
         train_loader, val_loader, test_loader = generate_loaders_qm9(args)
+    elif args.dataset == "charged":
+        train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
     else:
         raise ValueError(f"Dataset {args.dataset} not recognized.")
 
