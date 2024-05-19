@@ -10,7 +10,7 @@ from argparse import Namespace
 from torch_geometric.loader import DataLoader
 from n_body import get_nbody_dataloaders
 import copy
-
+from torch.nn.utils.rnn import pad_sequence
 
 class NodeDistance:
     def __init__(self, normalize=False) -> None:
@@ -23,6 +23,24 @@ class NodeDistance:
             node_com_distances = node_com_distances / node_com_distances.max()
         data.x = torch.cat([data.x, node_com_distances], dim=-1)
         return data
+
+def collate_fn(data_list):
+    x_list = [d.x for d in data_list]
+    x = pad_sequence(x_list, batch_first=True, padding_value=0.0)
+    mask = torch.zeros_like(x)
+    for i, d in enumerate(data_list):
+        mask[i, d.x.size(0):] = -torch.inf
+
+    y = torch.stack([d.y for d in data_list])
+    edge_attr_list = [d.edge_attr for d in data_list]
+    edge_attr = pad_sequence(edge_attr_list, batch_first=True, padding_value=0.0)
+    edge_mask = torch.zeros_like(edge_attr)
+    for i, d in enumerate(data_list):
+        edge_mask[i, d.edge_attr.size(0):] = -torch.inf
+    
+    pos = [d.pos for d in data_list]
+
+    return x, edge_attr, pos, mask, edge_mask, y
 
 
 def get_model(args: Namespace) -> nn.Module:
