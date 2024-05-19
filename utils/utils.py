@@ -9,6 +9,16 @@ from typing import Tuple
 from argparse import Namespace
 from torch_geometric.loader import DataLoader
 from n_body import get_nbody_dataloaders
+import copy
+
+class NodeDistance:
+    def __call__(self, data, normalize=False):
+        data = copy.copy(data)
+        node_com_distances = torch.linalg.vector_norm(data.pos - data.pos.mean(dim=0), dim=-1)
+        if normalize:
+            node_com_distances = node_com_distances / node_com_distances.max()
+        data.x = torch.cat([data.x, node_com_distances], dim=-1)
+        return data
 
 
 def get_model(args: Namespace) -> nn.Module:
@@ -41,7 +51,7 @@ def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
         from torch_geometric.datasets import QM9
         import torch_geometric.transforms as T
         # Distance transform handles distances between atoms
-        dataset = QM9(root='data/QM9', pre_transform=T.Distance())
+        dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), NodeDistance(normalize=True)]))
         num_train = 100000
         num_val = 10000
 

@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 from typing import Callable
 
+
 def GraphTransform(
     batch_size: int,
 ) -> Callable:
@@ -24,3 +25,4 @@ def GraphTransform(
         return (jax_data['x'], jax_data['pos'], jax_data['edge_index'], jax_data['edge_attr']), jax_data['y']
 
     return _to_jax
+
