@@ -115,7 +115,7 @@ As a baseline, we compare our dual encoder transformer to varying architectures,
 For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data.
 
 ## **<a name="reproduction">Reproduction of the Experiments</a>**
-
+<!-- 
 ...
 
 <table align="center">
@@ -236,7 +236,7 @@ For all the aforementioned methods except TorchMD-Net (due to time constraints),
   </tr>
 </table>
 
-...
+... -->
 
 
 ## **Concluding Remarks**
