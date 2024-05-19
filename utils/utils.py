@@ -11,6 +11,7 @@ from torch_geometric.loader import DataLoader
 from n_body import get_nbody_dataloaders
 import copy
 
+
 class NodeDistance:
     def __call__(self, data, normalize=False):
         data = copy.copy(data)
