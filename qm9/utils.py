@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from typing import Callable
-
+import copy
 
 def GraphTransform(
     batch_size: int,
@@ -26,3 +26,8 @@ def GraphTransform(
 
     return _to_jax
 
+class RemoveNumHs:
+    def __call__(self, data):
+        data = copy.copy(data)
+        data.x = data.x[:, :-1]
+        return data

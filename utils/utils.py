@@ -11,6 +11,7 @@ from torch_geometric.loader import DataLoader
 from n_body import get_nbody_dataloaders
 import copy
 from torch.nn.utils.rnn import pad_sequence
+from qm9.utils import RemoveNumHs
 
 class NodeDistance:
     def __init__(self, normalize=False) -> None:
@@ -23,6 +24,7 @@ class NodeDistance:
             node_com_distances = node_com_distances / node_com_distances.max()
         data.x = torch.cat([data.x, node_com_distances], dim=-1)
         return data
+    
 
 def collate_fn(data_list):
     x_list = [d.x for d in data_list]
@@ -73,7 +75,7 @@ def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
         from torch_geometric.datasets import QM9
         import torch_geometric.transforms as T
         # Distance transform handles distances between atoms
-        dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), NodeDistance(normalize=True)]))
+        dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]))
         num_train = 100000
         num_val = 10000
 
