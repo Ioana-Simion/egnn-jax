@@ -21,6 +21,7 @@ class MultiheadAttention(nn.Module):
             kernel_init=nn.initializers.xavier_uniform(),  # Weights with Xavier uniform init
             bias_init=nn.initializers.zeros,  # Bias init with zeros
         )
+
         self.o_proj = nn.Dense(
             self.embed_dim,
             kernel_init=nn.initializers.xavier_uniform(),
@@ -61,11 +62,13 @@ class MultiHeadCrossAttention(nn.Module):
             kernel_init=nn.initializers.xavier_uniform(),  # Weights with Xavier uniform init
             bias_init=nn.initializers.zeros,  # Bias init with zeros
         )
+
         self.q_proj = nn.Dense(
             1 * self.embed_dim,
             kernel_init=nn.initializers.xavier_uniform(),  # Weights with Xavier uniform init
             bias_init=nn.initializers.zeros,  # Bias init with zeros
         )
+
         self.o_proj = nn.Dense(
             self.embed_dim,
             kernel_init=nn.initializers.xavier_uniform(),
@@ -336,12 +339,14 @@ class EGNNTransformer(nn.Module):
         # Input layer
         edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
         edge_inputs = self.input_layer_edges(edge_inputs)
+
         # Edge Encoder
         edge_encoded = self.edge_encoder(edge_inputs, mask=None, train=train)
 
         # Input layer
         node_inputs = self.input_dropout(node_inputs, deterministic=not train)
         node_inputs = self.input_layer_nodes(node_inputs)
+
         # Node Encoder
         node_encoded = self.node_encoder(node_inputs, mask=None, train=train)
 
