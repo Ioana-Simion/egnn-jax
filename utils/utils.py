@@ -79,9 +79,9 @@ def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
         num_train = 100000
         num_val = 10000
 
-        train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True)
-        val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size)
-        test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size)
+        train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+        val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
+        test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, collate_fn=collate_fn)
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
     else:
