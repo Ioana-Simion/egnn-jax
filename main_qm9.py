@@ -91,140 +91,142 @@ def update(
     target: jnp.ndarray,
     opt_state: optax.OptState,
     loss_fn: Callable,
-    opt_update: Callable
+    opt_update: Callable,
 ):
     loss, grads = jax.value_and_grad(loss_fn)(params, feat, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
-#TODO:check to see if we need something else
-@partial(jax.jit, static_argnames=["model_fn"])
-def mse(
-    params,
-    feat,
-    target: jnp.ndarray,
-    model_fn: Callable,
-):
-    # pred is tuple h,x
-    pred = model_fn(
-        params,
-        *feat,
-    )[1]
-    return (jnp.power(pred - target, 2)).mean()
+def get_property_index(property_name):
+    property_dict = {
+        'alpha': 0,
+        'gap': 1,
+        'homo': 2,
+        'lumo': 3,
+        'mu': 4,
+        'Cv': 5,
+        'G': 6,
+        'H': 7,
+        'r2': 8,
+        'U': 9,
+        'U0': 10,
+        'zpve': 11
+    }
+    return property_dict[property_name]
+
+def create_graph(h, x, edges, edge_attr):
+    
+    n_node = jnp.array([h.shape[0]])
+    n_edge = jnp.array([edges.shape[1]])
+
+    graphs_tuple = jraph.GraphsTuple(
+            nodes=h,
+            edges=edge_attr,
+            senders=edges[0],
+            receivers=edges[1],
+            globals=None,
+            n_node=n_node,
+            n_edge=n_edge
+        )
+    
+    return graphs_tuple
+
+def create_padding_mask(h, x, edges, edge_attr):
+    # num_nodes = h.shape[0]
+    # num_edges = edges.shape[1]
+    graph = create_graph(h,x,edges,edge_attr)
+
+    node_mask = jraph.get_node_padding_mask(graph)
+    edge_mask = jraph.get_edge_padding_mask(graph)
+    
+    return node_mask, edge_mask
+
+def compute_mean_mad(dataloader, property_idx):
+    values = []
+    for batch in dataloader:
+        values.append(jnp.array(batch.y[:, property_idx].numpy()))
+    values = jnp.concatenate(values)
+    meann = jnp.mean(values)
+    ma = jnp.abs(values - meann)
+    mad = jnp.mean(ma)
+    return meann, mad
 
 
-def evaluate(
-    loader: Iterable,
-    params,
-    loss_fn: Callable,
-    graph_transform: Callable,
-) -> float:
+def normalize(pred, meann, mad):
+    return (pred - meann) / mad
+
+def denormalize(pred, meann, mad):
+    return mad * pred + meann
+
+@partial(jax.jit, static_argnames=["model_fn", "task", "training"])
+def l1_loss(params, feat, target, model_fn, meann, mad, training=True, task="graph"):
+    h, x, edges, edge_attr = feat
+    pred = model_fn(params, h, x, edges, edge_attr)[0]
+
+    node_mask, edge_mask = create_padding_mask(h, x, edges, edge_attr)
+    
+    if training:
+        # Normalize prediction and target for training
+        pred = normalize(pred, meann, mad)
+        target = normalize(target, meann, mad)
+    else:
+        # only for eval
+        pred = denormalize(pred, meann, mad)
+
+    target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
+    
+    # Apply the mask to the predictions and targets
+    pred = pred * node_mask[:, None]
+    target_padded = target_padded * node_mask[:, None]
+
+    assert pred.shape == target_padded.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target_padded.shape}"
+    
+    return jnp.mean(jnp.abs(pred - target_padded))
+
+def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph"):
     eval_loss = 0.0
     for data in loader:
         feat, target = graph_transform(data)
-        loss = jax.lax.stop_gradient(loss_fn(params, feat, target))
+        loss = jax.lax.stop_gradient(loss_fn(params, feat, target, meann, mad, training=False))
         eval_loss += jax.block_until_ready(loss)
     return eval_loss / len(loader)
 
 
-# @jax.jit
-# def train_step(state, batch):
-#     grad_fn = jax.value_and_grad(calculate_loss)
-#     loss, grads = grad_fn(state.params, state.apply_fn, batch)
-#     state = state.apply_gradients(grads=grads)
-#     return state, loss
-#
-#
-# @jax.jit
-# def eval_step(state, batch):
-#     loss = calculate_loss(state.params, state.apply_fn, batch)
-#     return loss
-
-
-# def test_model(state, data_loader):
-#     """
-#     Test a model on a specified dataset.
-#
-#     Inputs:
-#         state - Training state including parameters and model apply function.
-#         data_loader - DataLoader object of the dataset to test on (validation or test)
-#     """
-#     true_preds, count = 0., 0
-#     for batch in data_loader:
-#         acc = eval_step(state, batch)
-#         batch_size = batch[0].shape[0]
-#         true_preds += acc * batch_size
-#         count += batch_size
-#     test_acc = true_preds / count
-#     return test_acc.item()
-
-
-
 def train_model(args, graph_transform, model_name, checkpoint_path):
-    # # Generate model
-    model = get_model(args)  # .to(args.device)
+    # Generate model
+    model = get_model(args)
 
-    # # Get loaders
+    # Get loaders
     train_loader, val_loader, test_loader = get_loaders(args)
 
+    property_idx = get_property_index(args.property)
+    meann, mad = compute_mean_mad(train_loader, property_idx)
+    print(f"Mean: {meann}, MAD: {mad}")
+
     init_feat, _ = graph_transform(next(iter(train_loader)))
-
-    # Get optimization objects
-    #state = train_state.TrainState.create(
-    #    apply_fn=model.apply, params=model.init(jax.random.PRNGKey(0), init_graph),
-    #    tx=optax.adamw(args.lr, weight_decay=args.weight_decay)
-    #)
-    opt_init, opt_update = optax.adamw(
-        learning_rate=args.lr, weight_decay=args.weight_decay
-    )
-
+    
+    opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     params = model.init(jax_seed, *init_feat)
-
-    loss_fn = partial(mse, model_fn=model.apply)
-    update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
-    eval_fn = partial(evaluate, loss_fn=loss_fn, graph_transform=graph_transform)
-
     opt_state = opt_init(params)
 
-    # TODO do cosine annealing
-    # lr_schedule = optax.cosine_decay_schedule(init_value=args.lr,
-    #                                           decay_steps=args.epochs * steps_per_epoch,
-    #                                           alpha=final_lr / init_lr)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
-    # lr = args.lr
-    # weight_decay = args.weight_decay
-    #
-    # # Total number of steps (epochs * steps_per_epoch)
-    # # You would need to know or define steps_per_epoch based on your dataset
-    # total_steps = args.epochs * steps_per_epoch
-    #
-    # # Setup cosine decay for the learning rate without restarts
-    # lr_schedule = optax.cosine_decay_schedule(init_value=lr, decay_steps=total_steps, alpha=0)
-    #
-    # # Create the optimizer with weight decay
-    # optimizer = optax.chain(
-    #     optax.adam(learning_rate=lr_schedule, weight_decay=weight_decay)
-    # )
+    loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, task=args.task)
+    update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
+    eval_fn = partial(evaluate, loss_fn=loss_fn, graph_transform=graph_transform, meann=meann, mad=mad, task=args.task)
 
     train_scores = []
     val_scores = []
-    test_loss = 0
+    test_loss, best_val_epoch = 0, 0
 
     for epoch in tqdm(range(args.epochs)):
         ############
         # Training #
         ############
-        train_loss, val_loss = 0, 0
-        for batch in tqdm(train_loader.dataset, desc=f"Epoch {epoch+1}", leave=False):
+        train_loss = 0.0
+        for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform(batch)
-            loss, params, opt_state = update_fn(
-                params=params,
-                feat=feat,
-                target=target,
-                opt_state=opt_state
-            )
+            loss, params, opt_state = update_fn(params=params, feat=feat, target=target, opt_state=opt_state)
             train_loss += loss
-        train_loss /= len(train_loader.dataset)
+        train_loss /= len(train_loader)
         train_scores.append(train_loss)
 
         ##############
@@ -232,36 +234,34 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         ##############
         if epoch % args.val_freq == 0:
             val_loss = eval_fn(val_loader, params)
-
             val_scores.append(val_loss)
-            print(f"[Epoch {epoch + 1:2d}] Training accuracy: {train_loss:05.2%}, Validation accuracy: {val_loss:4.2%}")
+            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
 
-            if len(val_scores) == 1 or val_loss > val_scores[best_val_epoch]:
+            if len(val_scores) == 1 or val_loss < val_scores[best_val_epoch]:
                 print("\t   (New best performance, saving model...)")
                 save_model(model, params, checkpoint_path, model_name)
                 best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params)
 
-    print(f"Final Performance [Epoch {epoch + 1:2d}] Training accuracy: {train_scores[best_val_epoch]:05.2%}, "
-          f"Validation accuracy: {val_scores[best_val_epoch]:4.2%}, Test accuracy: {test_loss:2.2%} ")
-    results = {"test_mae": test_loss, "val_scores": val_scores[best_val_epoch],
-               "train_scores": train_scores[best_val_epoch]}
+    print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_scores[best_val_epoch]:.6f}, "
+          f"Validation loss: {val_scores[best_val_epoch]:.6f}, Test loss: {test_loss:.6f}")
+    results = {"test_mae": test_loss, "val_scores": val_scores[best_val_epoch], "train_scores": train_scores[best_val_epoch]}
     with open(_get_result_file(checkpoint_path, model_name), "w") as f:
         json.dump(results, f)
 
-    # Plot a curve of the validation accuracy
+    # Plot validation performance
     sns.set()
-    plt.plot([i for i in range(1, len(results["train_scores"]) + 1)], results["train_scores"], label="Train")
-    plt.plot([i for i in range(1, len(results["val_scores"]) + 1)], results["val_scores"], label="Val")
+    plt.plot(range(1, len(train_scores) + 1), train_scores, label="Train")
+    plt.plot(range(1, len(val_scores) + 1), val_scores, label="Val")
     plt.xlabel("Epochs")
-    plt.ylabel("Validation accuracy")
-    plt.ylim(min(results["val_scores"]), max(results["train_scores"]) * 1.01)
+    plt.ylabel("Loss")
+    plt.ylim(min(val_scores), max(train_scores) * 1.01)
     plt.title(f"Validation performance of {model_name}")
     plt.legend()
     plt.show()
     plt.close()
 
-    print((f" Test accuracy: {results['test_acc']:4.2%} ").center(50, "=") + "\n")
+    print(f" Test loss: {results['test_loss']:.6f} ".center(50, "=") + "\n")
     return
 
 
@@ -303,6 +303,8 @@ if __name__ == "__main__":
         choices=["qm9", "charged", "gravity"],
     )
 
+    parser.add_argument("--property", type=str, default="homo", help="Label to predict: alpha | gap | homo | lumo | mu | Cv | G | H | r2 | U | U0 | zpve")
+    
     # Model parameters
     parser.add_argument(
         "--num_hidden",

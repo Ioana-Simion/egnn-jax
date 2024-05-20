@@ -1,10 +1,10 @@
 import jax.numpy as jnp
 from typing import Callable
+import jraph
+import torch
 
 
-def GraphTransform(
-    batch_size: int,
-) -> Callable:
+def GraphTransform(batch_size: int) -> Callable:
     """
     Build a function that converts torch geometric DataBatch into jraph.GraphsTuple.
     Returns:
@@ -15,14 +15,15 @@ def GraphTransform(
     targets: Target properties (dataset.y)
     """
     def _to_jax(data):
-        jax_data = {}
-        jax_data['x'] = jnp.array(data.x.numpy())
-        jax_data['pos'] = jnp.array(data.pos.numpy())
-        jax_data['edge_index'] = jnp.array(data.edge_index.numpy())
-        jax_data['edge_attr'] = jnp.array(data.edge_attr.numpy())
-        jax_data['y'] = jnp.array(data.y.numpy())
+        jax_data = {key: jnp.array(value.numpy()) for key, value in data.items() if torch.is_tensor(value)}
         
-        return (jax_data['x'], jax_data['pos'], jax_data['edge_index'], jax_data['edge_attr']), jax_data['y']
-
+        nodes = jax_data['x']
+        pos = jax_data['pos']
+        edge_indices = jax_data['edge_index']
+        edge_attr = jax_data['edge_attr'] if 'edge_attr' in jax_data else None
+        targets = jax_data['y']
+        
+        return (nodes, pos, edge_indices, edge_attr), targets
+    
     return _to_jax
 

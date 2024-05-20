@@ -46,7 +46,7 @@ def collate_fn(data_list):
 def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
     if args.dataset == "qm9":
-        num_out = 1
+        num_out = 19
     elif args.dataset == "charged":
         num_out = 3
     else:
@@ -77,9 +77,9 @@ def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
         num_train = 100000
         num_val = 10000
 
-        train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True)
-        val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size)
-        test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size)
+        train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, drop_last=True)
+        test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, drop_last=True)
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
     else:
