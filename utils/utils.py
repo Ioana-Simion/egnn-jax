@@ -19,7 +19,7 @@ class NodeDistance:
 
     def __call__(self, data):
         data = copy.copy(data)
-        node_com_distances = torch.linalg.vector_norm(data.pos - data.pos.mean(dim=0), dim=-1)
+        node_com_distances = torch.linalg.vector_norm(data.pos - data.pos.mean(dim=0), dim=-1).view(-1, 1)
         if self.normalize:
             node_com_distances = node_com_distances / node_com_distances.max()
         data.x = torch.cat([data.x, node_com_distances], dim=-1)
