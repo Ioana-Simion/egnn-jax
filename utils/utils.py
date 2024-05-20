@@ -7,7 +7,7 @@ import numpy as np
 import torch.nn as nn
 from typing import Tuple
 from argparse import Namespace
-from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader
 from n_body import get_nbody_dataloaders
 import copy
 from torch.nn.utils.rnn import pad_sequence
