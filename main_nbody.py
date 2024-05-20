@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 from models.egnn_jax import get_edges_batch
 from n_body.utils import NbodyGraphTransform
-from qm9.utils import calc_mean_mad
 from utils.utils import get_model, get_loaders, set_seed
 from flax.training import train_state
 import jax.numpy as jnp
@@ -128,6 +127,39 @@ def evaluate(
     return eval_loss / len(loader)
 
 
+# @jax.jit
+# def train_step(state, batch):
+#     grad_fn = jax.value_and_grad(calculate_loss)
+#     loss, grads = grad_fn(state.params, state.apply_fn, batch)
+#     state = state.apply_gradients(grads=grads)
+#     return state, loss
+#
+#
+# @jax.jit
+# def eval_step(state, batch):
+#     loss = calculate_loss(state.params, state.apply_fn, batch)
+#     return loss
+
+
+# def test_model(state, data_loader):
+#     """
+#     Test a model on a specified dataset.
+#
+#     Inputs:
+#         state - Training state including parameters and model apply function.
+#         data_loader - DataLoader object of the dataset to test on (validation or test)
+#     """
+#     true_preds, count = 0., 0
+#     for batch in data_loader:
+#         acc = eval_step(state, batch)
+#         batch_size = batch[0].shape[0]
+#         true_preds += acc * batch_size
+#         count += batch_size
+#     test_acc = true_preds / count
+#     return test_acc.item()
+
+
+
 def train_model(args, graph_transform, model_name, checkpoint_path):
     # # Generate model
     model = get_model(args)  # .to(args.device)
@@ -137,6 +169,11 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
     init_feat, _ = graph_transform(next(iter(train_loader)))
 
+    # Get optimization objects
+    #state = train_state.TrainState.create(
+    #    apply_fn=model.apply, params=model.init(jax.random.PRNGKey(0), init_graph),
+    #    tx=optax.adamw(args.lr, weight_decay=args.weight_decay)
+    #)
     opt_init, opt_update = optax.adamw(
         learning_rate=args.lr, weight_decay=args.weight_decay
     )
@@ -149,12 +186,31 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
     opt_state = opt_init(params)
 
+    # TODO do cosine annealing
+    # lr_schedule = optax.cosine_decay_schedule(init_value=args.lr,
+    #                                           decay_steps=args.epochs * steps_per_epoch,
+    #                                           alpha=final_lr / init_lr)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
+    # lr = args.lr
+    # weight_decay = args.weight_decay
+    #
+    # # Total number of steps (epochs * steps_per_epoch)
+    # # You would need to know or define steps_per_epoch based on your dataset
+    # total_steps = args.epochs * steps_per_epoch
+    #
+    # # Setup cosine decay for the learning rate without restarts
+    # lr_schedule = optax.cosine_decay_schedule(init_value=lr, decay_steps=total_steps, alpha=0)
+    #
+    # # Create the optimizer with weight decay
+    # optimizer = optax.chain(
+    #     optax.adam(learning_rate=lr_schedule, weight_decay=weight_decay)
+    # )
 
     train_scores = []
     val_scores = []
     test_loss = 0
 
-    for epoch in range(args.epochs):
+    for epoch in tqdm(range(args.epochs)):
         ############
         # Training #
         ############
