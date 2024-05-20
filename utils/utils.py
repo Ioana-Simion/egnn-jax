@@ -8,6 +8,7 @@ import torch.nn as nn
 from typing import Tuple
 from argparse import Namespace
 from torch.utils.data import DataLoader
+from torch_geometric.loader import DataLoader as GDataLoader
 from n_body import get_nbody_dataloaders
 import copy
 from torch.nn.utils.rnn import pad_sequence
@@ -69,7 +70,7 @@ def get_model(args: Namespace) -> nn.Module:
     return model
 
 
-def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def get_loaders(args: Namespace, transformer=False) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """Return dataloaders based on dataset."""
     if args.dataset == "qm9":
         from torch_geometric.datasets import QM9
@@ -79,9 +80,14 @@ def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
         num_train = 100000
         num_val = 10000
 
-        train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
-        val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
-        test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, collate_fn=collate_fn)
+        if transformer:
+            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
+            test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, collate_fn=collate_fn)
+        else:
+            train_loader = GDataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True)
+            val_loader = GDataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size)
+            test_loader = GDataLoader(dataset[num_train+num_val:], batch_size=args.batch_size)
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
     else:
