@@ -1,3 +1,4 @@
+import copy
 import jax.numpy as jnp
 from typing import Callable
 import jraph
@@ -14,6 +15,7 @@ def GraphTransform(batch_size: int) -> Callable:
     edge_attr: Edge attributes (dataset.edge_attr)
     targets: Target properties (dataset.y)
     """
+
     def _to_jax(data):
         jax_data = {key: jnp.array(value.numpy()) for key, value in data.items() if torch.is_tensor(value)}
         
@@ -27,3 +29,9 @@ def GraphTransform(batch_size: int) -> Callable:
     
     return _to_jax
 
+
+class RemoveNumHs:
+    def __call__(self, data):
+        data = copy.copy(data)
+        data.x = data.x[:, :-1]
+        return data

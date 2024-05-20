@@ -7,10 +7,12 @@ import numpy as np
 import torch.nn as nn
 from typing import Tuple
 from argparse import Namespace
-from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader
+from torch_geometric.loader import DataLoader as GDataLoader
 from n_body import get_nbody_dataloaders
 import copy
 from torch.nn.utils.rnn import pad_sequence
+from qm9.utils import RemoveNumHs
 
 class NodeDistance:
     def __init__(self, normalize=False) -> None:
@@ -18,11 +20,12 @@ class NodeDistance:
 
     def __call__(self, data):
         data = copy.copy(data)
-        node_com_distances = torch.linalg.vector_norm(data.pos - data.pos.mean(dim=0), dim=-1)
+        node_com_distances = torch.linalg.vector_norm(data.pos - data.pos.mean(dim=0), dim=-1).view(-1, 1)
         if self.normalize:
             node_com_distances = node_com_distances / node_com_distances.max()
         data.x = torch.cat([data.x, node_com_distances], dim=-1)
         return data
+    
 
 def collate_fn(data_list):
     x_list = [d.x for d in data_list]
@@ -67,19 +70,24 @@ def get_model(args: Namespace) -> nn.Module:
     return model
 
 
-def get_loaders(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def get_loaders(args: Namespace, transformer=False) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """Return dataloaders based on dataset."""
     if args.dataset == "qm9":
         from torch_geometric.datasets import QM9
         import torch_geometric.transforms as T
         # Distance transform handles distances between atoms
-        dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), NodeDistance(normalize=True)]))
+        dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]))
         num_train = 100000
         num_val = 10000
 
-        train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, drop_last=True)
-        val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, drop_last=True)
-        test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, drop_last=True)
+        if transformer:
+            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
+            test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, collate_fn=collate_fn)
+        else:
+            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, drop_last=True)
+            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, drop_last=True)
+            test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, drop_last=True)
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
     else:

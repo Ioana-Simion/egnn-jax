@@ -1,27 +1,27 @@
 # jax grad process from https://github.com/gerkone/egnn-jax/blob/main/validate.py
 
-import argparse
-import json
-from typing import Dict, Callable, Tuple, Iterable
-
-import jraph
-import torch
-from tqdm import tqdm
-
-from models.egnn_jax import get_edges_batch
-from qm9.utils import GraphTransform
-from utils.utils import get_model, get_loaders, set_seed
-from flax.training import train_state
-import jax.numpy as jnp
+import os
 import jax
+import jraph
+import json
+import torch
+import pickle
 import optax
+import argparse
+import jax.numpy as jnp
 import seaborn as sns
 import matplotlib.pyplot as plt
-import os
-import pickle
+from tqdm import tqdm
 from functools import partial
+from qm9.utils import GraphTransform
+from flax.training import train_state
+from models.egnn_jax import get_edges_batch
+from typing import Dict, Callable, Tuple, Iterable
+from utils.utils import get_model, get_loaders, set_seed
 
+# Seeding
 jax_seed = jax.random.PRNGKey(42)
+
 
 def _get_config_file(model_path, model_name):
     # Name of the file for storing hyperparameter details
@@ -43,15 +43,17 @@ def save_model(model, params, model_path, model_name):
         model_path - Path of the checkpoint directory
         model_name - Name of the model (str)
     """
-    #config_dict = {'hidden_sizes': model.hidden_sizes,
+    # config_dict = {'hidden_sizes': model.hidden_sizes,
     #               'num_classes': model.num_classes}
     os.makedirs(model_path, exist_ok=True)
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(model_path, model_name)
-    #with open(config_file, "w") as f:
+    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
+        model_path, model_name
+    )
+    # with open(config_file, "w") as f:
     #    json.dump(config_dict, f)
     # You can also use flax's checkpoint package. To show an alternative,
     # you can instead save the parameters simply in a pickle file.
-    with open(model_file, 'wb') as f:
+    with open(model_file, "wb") as f:
         pickle.dump(params, f)
 
 
@@ -69,16 +71,22 @@ def load_model(model_path, model_name, state=None):
         state - (Optional) If given, the parameters are loaded into this training state. Otherwise,
                 a new one is created alongside a network architecture.
     """
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(model_path, model_name)
-    assert os.path.isfile(config_file), f"Could not find the config file \"{config_file}\". Are you sure this is the correct path and you have your model config stored here?"
-    assert os.path.isfile(model_file), f"Could not find the model file \"{model_file}\". Are you sure this is the correct path and you have your model stored here?"
+    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
+        model_path, model_name
+    )
+    assert os.path.isfile(
+        config_file
+    ), f'Could not find the config file "{config_file}". Are you sure this is the correct path and you have your model config stored here?'
+    assert os.path.isfile(
+        model_file
+    ), f'Could not find the model file "{model_file}". Are you sure this is the correct path and you have your model stored here?'
     with open(config_file, "r") as f:
         config_dict = json.load(f)
     # TODO check this in depth
     net = None
     # You can also use flax's checkpoint package. To show an alternative,
     # you can instead load the parameters simply from a pickle file.
-    with open(model_file, 'rb') as f:
+    with open(model_file, "rb") as f:
         params = pickle.load(f)
     state = state.replace(params=params)
     return state, net
@@ -331,10 +339,8 @@ if __name__ == "__main__":
         action="store_true",
         help="Use double precision",
     )
-    parser.add_argument('--model_name', type=str, default='egnn',
-                        help='model')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='random seed')
+    parser.add_argument("--model_name", type=str, default="egnn", help="model")
+    parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
 
     parsed_args = parser.parse_args()
@@ -349,4 +355,4 @@ if __name__ == "__main__":
 
     graph_transform = GraphTransform(batch_size=parsed_args.batch_size)
 
-    train_model(parsed_args, graph_transform, 'test', 'assets')
+    train_model(parsed_args, graph_transform, "test", "assets")

@@ -1,7 +1,7 @@
-from synthetic_sim import ChargedParticlesSim, SpringSim
 import time
 import numpy as np
 import argparse
+from synthetic_sim import ChargedParticlesSim, SpringSim
 
 """
 nbody: python -u generate_dataset.py  --num-train 50000 --sample-freq 500 2>&1 | tee log_generating_100000.log &
