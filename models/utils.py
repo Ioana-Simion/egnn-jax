@@ -1,6 +1,5 @@
-# Note: Thus far I've just taken the JAX transformer stuff from the UVADLC notebook
-# With some adjustments
-# - Greg
+# The contents of this file are mostly taken from:
+# https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
 
 import jax.numpy as jnp
 import flax.linen as nn
@@ -40,7 +39,9 @@ def expand_mask(mask):
 
 
 def cosine_warmup_schedule(base_lr: float, warmup: int, max_iters: int):
-    assert warmup > 0 and max_iters > 0
+    assert (
+        warmup > 0 and max_iters > 0
+    ), "Ensure that the 'warmup' and 'max_iters' are above zero!"
 
     # Create function to return lr based on iteration count
     def get_lr(train_iter):

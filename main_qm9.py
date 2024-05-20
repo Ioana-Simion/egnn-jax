@@ -1,27 +1,27 @@
 # jax grad process from https://github.com/gerkone/egnn-jax/blob/main/validate.py
 
-import argparse
-import json
-from typing import Dict, Callable, Tuple, Iterable
-
-import jraph
-import torch
-from tqdm import tqdm
-
-from models.egnn_jax import get_edges_batch
-from qm9.utils import GraphTransform
-from utils.utils import get_model, get_loaders, set_seed
-from flax.training import train_state
-import jax.numpy as jnp
+import os
 import jax
+import jraph
+import json
+import torch
+import pickle
 import optax
+import argparse
+import jax.numpy as jnp
 import seaborn as sns
 import matplotlib.pyplot as plt
-import os
-import pickle
+from tqdm import tqdm
 from functools import partial
+from qm9.utils import GraphTransform
+from flax.training import train_state
+from models.egnn_jax import get_edges_batch
+from typing import Dict, Callable, Tuple, Iterable
+from utils.utils import get_model, get_loaders, set_seed
 
+# Seeding
 jax_seed = jax.random.PRNGKey(42)
+
 
 def _get_config_file(model_path, model_name):
     # Name of the file for storing hyperparameter details
@@ -43,15 +43,17 @@ def save_model(model, params, model_path, model_name):
         model_path - Path of the checkpoint directory
         model_name - Name of the model (str)
     """
-    #config_dict = {'hidden_sizes': model.hidden_sizes,
+    # config_dict = {'hidden_sizes': model.hidden_sizes,
     #               'num_classes': model.num_classes}
     os.makedirs(model_path, exist_ok=True)
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(model_path, model_name)
-    #with open(config_file, "w") as f:
+    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
+        model_path, model_name
+    )
+    # with open(config_file, "w") as f:
     #    json.dump(config_dict, f)
     # You can also use flax's checkpoint package. To show an alternative,
     # you can instead save the parameters simply in a pickle file.
-    with open(model_file, 'wb') as f:
+    with open(model_file, "wb") as f:
         pickle.dump(params, f)
 
 
@@ -69,16 +71,22 @@ def load_model(model_path, model_name, state=None):
         state - (Optional) If given, the parameters are loaded into this training state. Otherwise,
                 a new one is created alongside a network architecture.
     """
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(model_path, model_name)
-    assert os.path.isfile(config_file), f"Could not find the config file \"{config_file}\". Are you sure this is the correct path and you have your model config stored here?"
-    assert os.path.isfile(model_file), f"Could not find the model file \"{model_file}\". Are you sure this is the correct path and you have your model stored here?"
+    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
+        model_path, model_name
+    )
+    assert os.path.isfile(
+        config_file
+    ), f'Could not find the config file "{config_file}". Are you sure this is the correct path and you have your model config stored here?'
+    assert os.path.isfile(
+        model_file
+    ), f'Could not find the model file "{model_file}". Are you sure this is the correct path and you have your model stored here?'
     with open(config_file, "r") as f:
         config_dict = json.load(f)
     # TODO check this in depth
     net = None
     # You can also use flax's checkpoint package. To show an alternative,
     # you can instead load the parameters simply from a pickle file.
-    with open(model_file, 'rb') as f:
+    with open(model_file, "rb") as f:
         params = pickle.load(f)
     state = state.replace(params=params)
     return state, net
@@ -91,13 +99,14 @@ def update(
     target: jnp.ndarray,
     opt_state: optax.OptState,
     loss_fn: Callable,
-    opt_update: Callable
+    opt_update: Callable,
 ):
     loss, grads = jax.value_and_grad(loss_fn)(params, feat, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
-#TODO:check to see if we need something else
+
+# TODO:check to see if we need something else
 @partial(jax.jit, static_argnames=["model_fn"])
 def mse(
     params,
@@ -159,7 +168,6 @@ def evaluate(
 #     return test_acc.item()
 
 
-
 def train_model(args, graph_transform, model_name, checkpoint_path):
     # # Generate model
     model = get_model(args)  # .to(args.device)
@@ -170,10 +178,10 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     init_feat, _ = graph_transform(next(iter(train_loader)))
 
     # Get optimization objects
-    #state = train_state.TrainState.create(
+    # state = train_state.TrainState.create(
     #    apply_fn=model.apply, params=model.init(jax.random.PRNGKey(0), init_graph),
     #    tx=optax.adamw(args.lr, weight_decay=args.weight_decay)
-    #)
+    # )
     opt_init, opt_update = optax.adamw(
         learning_rate=args.lr, weight_decay=args.weight_decay
     )
@@ -218,10 +226,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         for batch in tqdm(train_loader.dataset, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform(batch)
             loss, params, opt_state = update_fn(
-                params=params,
-                feat=feat,
-                target=target,
-                opt_state=opt_state
+                params=params, feat=feat, target=target, opt_state=opt_state
             )
             train_loss += loss
         train_loss /= len(train_loader.dataset)
@@ -234,7 +239,9 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
             val_loss = eval_fn(val_loader, params)
 
             val_scores.append(val_loss)
-            print(f"[Epoch {epoch + 1:2d}] Training accuracy: {train_loss:05.2%}, Validation accuracy: {val_loss:4.2%}")
+            print(
+                f"[Epoch {epoch + 1:2d}] Training accuracy: {train_loss:05.2%}, Validation accuracy: {val_loss:4.2%}"
+            )
 
             if len(val_scores) == 1 or val_loss > val_scores[best_val_epoch]:
                 print("\t   (New best performance, saving model...)")
@@ -242,17 +249,30 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
                 best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params)
 
-    print(f"Final Performance [Epoch {epoch + 1:2d}] Training accuracy: {train_scores[best_val_epoch]:05.2%}, "
-          f"Validation accuracy: {val_scores[best_val_epoch]:4.2%}, Test accuracy: {test_loss:2.2%} ")
-    results = {"test_mae": test_loss, "val_scores": val_scores[best_val_epoch],
-               "train_scores": train_scores[best_val_epoch]}
+    print(
+        f"Final Performance [Epoch {epoch + 1:2d}] Training accuracy: {train_scores[best_val_epoch]:05.2%}, "
+        f"Validation accuracy: {val_scores[best_val_epoch]:4.2%}, Test accuracy: {test_loss:2.2%} "
+    )
+    results = {
+        "test_mae": test_loss,
+        "val_scores": val_scores[best_val_epoch],
+        "train_scores": train_scores[best_val_epoch],
+    }
     with open(_get_result_file(checkpoint_path, model_name), "w") as f:
         json.dump(results, f)
 
     # Plot a curve of the validation accuracy
     sns.set()
-    plt.plot([i for i in range(1, len(results["train_scores"]) + 1)], results["train_scores"], label="Train")
-    plt.plot([i for i in range(1, len(results["val_scores"]) + 1)], results["val_scores"], label="Val")
+    plt.plot(
+        [i for i in range(1, len(results["train_scores"]) + 1)],
+        results["train_scores"],
+        label="Train",
+    )
+    plt.plot(
+        [i for i in range(1, len(results["val_scores"]) + 1)],
+        results["val_scores"],
+        label="Val",
+    )
     plt.xlabel("Epochs")
     plt.ylabel("Validation accuracy")
     plt.ylim(min(results["val_scores"]), max(results["train_scores"]) * 1.01)
@@ -329,10 +349,8 @@ if __name__ == "__main__":
         action="store_true",
         help="Use double precision",
     )
-    parser.add_argument('--model_name', type=str, default='egnn',
-                        help='model')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='random seed')
+    parser.add_argument("--model_name", type=str, default="egnn", help="model")
+    parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
 
     parsed_args = parser.parse_args()
@@ -347,4 +365,4 @@ if __name__ == "__main__":
 
     graph_transform = GraphTransform(batch_size=parsed_args.batch_size)
 
-    train_model(parsed_args, graph_transform, 'test', 'assets')
+    train_model(parsed_args, graph_transform, "test", "assets")

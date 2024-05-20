@@ -1,6 +1,7 @@
+import copy
 import jax.numpy as jnp
 from typing import Callable
-import copy
+
 
 def GraphTransform(
     batch_size: int,
@@ -14,17 +15,24 @@ def GraphTransform(
     edge_attr: Edge attributes (dataset.edge_attr)
     targets: Target properties (dataset.y)
     """
+
     def _to_jax(data):
         jax_data = {}
-        jax_data['x'] = jnp.array(data.x.numpy())
-        jax_data['pos'] = jnp.array(data.pos.numpy())
-        jax_data['edge_index'] = jnp.array(data.edge_index.numpy())
-        jax_data['edge_attr'] = jnp.array(data.edge_attr.numpy())
-        jax_data['y'] = jnp.array(data.y.numpy())
-        
-        return (jax_data['x'], jax_data['pos'], jax_data['edge_index'], jax_data['edge_attr']), jax_data['y']
+        jax_data["x"] = jnp.array(data.x.numpy())
+        jax_data["pos"] = jnp.array(data.pos.numpy())
+        jax_data["edge_index"] = jnp.array(data.edge_index.numpy())
+        jax_data["edge_attr"] = jnp.array(data.edge_attr.numpy())
+        jax_data["y"] = jnp.array(data.y.numpy())
+
+        return (
+            jax_data["x"],
+            jax_data["pos"],
+            jax_data["edge_index"],
+            jax_data["edge_attr"],
+        ), jax_data["y"]
 
     return _to_jax
+
 
 class RemoveNumHs:
     def __call__(self, data):

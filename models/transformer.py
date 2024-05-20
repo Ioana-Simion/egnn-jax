@@ -15,7 +15,6 @@ class MultiheadAttention(nn.Module):
 
     def setup(self):
         # Stack all weight matrices 1...h and W^Q, W^K, W^V together for efficiency
-        # Note that in many implementations you see "bias=False" which is optional
         self.qkv_proj = nn.Dense(
             3 * self.embed_dim,
             kernel_init=nn.initializers.xavier_uniform(),  # Weights with Xavier uniform init
