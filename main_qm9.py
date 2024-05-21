@@ -97,11 +97,12 @@ def update(
     params,
     feat,
     target: jnp.ndarray,
+    node_mask,
     opt_state: optax.OptState,
     loss_fn: Callable,
     opt_update: Callable,
 ):
-    loss, grads = jax.value_and_grad(loss_fn)(params, feat, target)
+    loss, grads = jax.value_and_grad(loss_fn)(params, feat, target, node_mask=node_mask)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
@@ -140,14 +141,13 @@ def create_graph(h, x, edges, edge_attr):
     return graphs_tuple
 
 def create_padding_mask(h, x, edges, edge_attr):
-    # num_nodes = h.shape[0]
-    # num_edges = edges.shape[1]
     graph = create_graph(h,x,edges,edge_attr)
 
     node_mask = jraph.get_node_padding_mask(graph)
-    edge_mask = jraph.get_edge_padding_mask(graph)
+    #not used now, skipped for efficiency
+    #edge_mask = jraph.get_edge_padding_mask(graph)
     
-    return node_mask, edge_mask
+    return node_mask
 
 def compute_mean_mad(dataloader, property_idx):
     values = []
@@ -167,11 +167,11 @@ def denormalize(pred, meann, mad):
     return mad * pred + meann
 
 @partial(jax.jit, static_argnames=["model_fn", "task"])
-def l1_loss(params, feat, target, model_fn, meann, mad, training=True, task="graph"):
+def l1_loss(params, feat, target, model_fn, meann, mad, node_mask, training=True, task="graph"):
     h, x, edges, edge_attr = feat
     pred = model_fn(params, h, x, edges, edge_attr)[0]
 
-    node_mask, edge_mask = create_padding_mask(h, x, edges, edge_attr)
+    #node_mask, edge_mask = create_padding_mask(h, x, edges, edge_attr)
     
     if training:
         # Normalize prediction and target for training
@@ -195,6 +195,8 @@ def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph")
     eval_loss = 0.0
     for data in loader:
         feat, target = graph_transform(data)
+        h, x, edges, edge_attr = feat
+        node_mask = create_padding_mask(h, x, edges, edge_attr)
         loss = jax.lax.stop_gradient(loss_fn(params, feat, target, meann, mad, training=False))
         eval_loss += jax.block_until_ready(loss)
     return eval_loss / len(loader)
@@ -225,14 +227,16 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     val_scores = []
     test_loss, best_val_epoch = 0, 0
 
-    for epoch in tqdm(range(args.epochs)):
+    for epoch in range(args.epochs):
         ############
         # Training #
         ############
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform(batch)
-            loss, params, opt_state = update_fn(params=params, feat=feat, target=target, opt_state=opt_state)
+            h, x, edges, edge_attr = feat
+            node_mask = create_padding_mask(h, x, edges, edge_attr)
+            loss, params, opt_state = update_fn(params=params, feat=feat, target=target, node_mask=node_mask, opt_state=opt_state)
             train_loss += loss
         train_loss /= len(train_loader)
         train_scores.append(train_loss)
