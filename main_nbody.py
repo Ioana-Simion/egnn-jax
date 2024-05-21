@@ -129,11 +129,13 @@ def evaluate(
     graph_transform: Callable,
 ) -> float:
     eval_loss = 0.0
+    num_batches = 0
     for data in loader:
         feat, target = graph_transform(data)
         loss = jax.lax.stop_gradient(loss_fn(params, feat, target))
         eval_loss += jax.block_until_ready(loss)
-    return eval_loss / len(loader.dataset)
+        num_batches += 1
+    return eval_loss / num_batches
 
 
 # @jax.jit
@@ -224,13 +226,15 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         # Training #
         ############
         train_loss, val_loss = 0, 0
+        num_batches = 0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform(batch)
             loss, params, opt_state = update_fn(
                 params=params, feat=feat, target=target, opt_state=opt_state
             )
             train_loss += loss
-        train_loss /= len(train_loader.dataset)
+            num_batches += 1
+        train_loss /= num_batches
         train_scores.append(train_loss)
 
         ##############
