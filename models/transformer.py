@@ -155,12 +155,16 @@ class TransformerEncoder(nn.Module):
     dropout_prob: float
 
     def setup(self):
-        self.layers = [
-            EncoderBlock(
-                self.input_dim, self.num_heads, self.dim_feedforward, self.dropout_prob
-            )
-            for _ in range(self.num_layers)
-        ]
+        self.layers = (
+            [
+                EncoderBlock(
+                    self.input_dim, self.num_heads, self.dim_feedforward, self.dropout_prob
+                )
+                for _ in range(self.num_layers)
+            ] 
+            if self.num_layers > 0 
+            else []
+        )
 
     def __call__(self, x, mask=None, train=True):
         for l in self.layers:
@@ -298,13 +302,14 @@ class EGNNTransformer(nn.Module):
         self.input_layer_nodes = nn.Dense(self.model_dim)
 
         # Edge Encoder
-        self.edge_encoder = TransformerEncoder(
-            num_layers=self.num_edge_encoder_blocks,
-            input_dim=self.model_dim,
-            num_heads=self.num_heads,
-            dim_feedforward=self.model_dim,
-            dropout_prob=self.dropout_prob,
-        )
+        if self.num_edge_encoder_blocks > 0:
+            self.edge_encoder = TransformerEncoder(
+                num_layers=self.num_edge_encoder_blocks,
+                input_dim=self.model_dim,
+                num_heads=self.num_heads,
+                dim_feedforward=self.model_dim,
+                dropout_prob=self.dropout_prob,
+            )
 
         # Node Encoder
         self.node_encoder = TransformerEncoder(
@@ -333,31 +338,75 @@ class EGNNTransformer(nn.Module):
         # Output classifier
         self.output_net = nn.Dense(1)
 
-    def __call__(self, edge_inputs, node_inputs, mask=None, train=True):
+    def __call__(self, edge_inputs, node_inputs, cross_mask=None, train=True):
 
         # Input layer
         edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
-        edge_inputs = self.input_layer_edges(edge_inputs)
+        edge_encoded = self.input_layer_edges(edge_inputs)
 
         # Edge Encoder
-        edge_encoded = self.edge_encoder(edge_inputs, mask=None, train=train)
+        if self.num_edge_encoder_blocks > 0:
+            edge_encoded = self.edge_encoder(edge_encoded, mask=None, train=train)
 
         # Input layer
         node_inputs = self.input_dropout(node_inputs, deterministic=not train)
-        node_inputs = self.input_layer_nodes(node_inputs)
+        node_encoded = self.input_layer_nodes(node_inputs)
 
         # Node Encoder
-        node_encoded = self.node_encoder(node_inputs, mask=None, train=train)
+        node_encoded = self.node_encoder(node_encoded, mask=None, train=train)
 
         # Cross Attention
-        combined_inputs, _ = self.cross_attention(edge_encoded, node_encoded, mask=mask)
+        edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
+        
+        node_encoded = node_encoded + edge_enrichment
 
         # Combined Encoder
-        combined_encoded = self.combined_encoder(
-            combined_inputs, mask=None, train=train
+        node_encoded = self.combined_encoder(
+            node_encoded, mask=None, train=train
         )
 
         # Output classifier
-        output = self.output_net(combined_encoded)
+        output = self.output_net(node_encoded)
 
         return output
+
+
+class NodeEGNNTransformer(nn.Module):
+    num_encoder_blocks: int
+
+    model_dim: int
+    num_heads: int
+    dropout_prob: float
+    node_input_dim: int
+
+    input_dropout_prob: float = 0.0
+
+    def setup(self):
+
+        # Input dim -> Model dim
+        self.input_dropout = nn.Dropout(self.input_dropout_prob)
+        self.input_layer_nodes = nn.Dense(self.model_dim)
+
+        # Node Encoder
+        self.node_encoder = TransformerEncoder(
+            num_layers=self.num_encoder_blocks,
+            input_dim=self.model_dim,
+            num_heads=self.num_heads,
+            dim_feedforward=self.model_dim,
+            dropout_prob=self.dropout_prob,
+        )
+
+        # Output classifier
+        self.output_net = nn.Dense(1)
+
+    def __call__(self, x, mask=None, train=True):
+        x = self.input_dropout(x, deterministic=not train)
+        x = self.input_layer_nodes(x)
+
+        # Node Encoder
+        x = self.node_encoder(x, mask=mask, train=train)
+
+        # Output classifier
+        x = self.output_net(x)
+
+        return x
