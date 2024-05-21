@@ -372,12 +372,12 @@ class EGNNTransformer(nn.Module):
 
 
 class NodeEGNNTransformer(nn.Module):
-    num_encoder_blocks: int
+    num_encoder_blocks: int = 6
 
-    model_dim: int
-    num_heads: int
-    dropout_prob: float
-    node_input_dim: int
+    model_dim: int = 128
+    num_heads: int = 8
+    dropout_prob: float = 0.0
+    node_input_dim: int = 19
 
     input_dropout_prob: float = 0.0
 
