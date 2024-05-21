@@ -294,7 +294,12 @@ class EGNNTransformer(nn.Module):
 
     input_dropout_prob: float = 0.0
 
+    predict_pos: bool = False
+
     def setup(self):
+
+        # CLS token embedding
+        self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
 
         # Input dim -> Model dim
         self.input_dropout = nn.Dropout(self.input_dropout_prob)
@@ -339,6 +344,8 @@ class EGNNTransformer(nn.Module):
         self.output_net = nn.Dense(1)
 
     def __call__(self, edge_inputs, node_inputs, cross_mask=None, train=True):
+        
+        batch_size, num_nodes, _ = node_inputs.shape
 
         # Input layer
         edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
@@ -348,9 +355,13 @@ class EGNNTransformer(nn.Module):
         if self.num_edge_encoder_blocks > 0:
             edge_encoded = self.edge_encoder(edge_encoded, mask=None, train=train)
 
+
+        cls_tokens = jnp.tile(self.cls_token, (batch_size, 1, 1))
+
         # Input layer
         node_inputs = self.input_dropout(node_inputs, deterministic=not train)
         node_encoded = self.input_layer_nodes(node_inputs)
+        node_encoded = jnp.concatenate([cls_tokens, node_encoded], axis=1)
 
         # Node Encoder
         node_encoded = self.node_encoder(node_encoded, mask=None, train=train)
@@ -383,6 +394,9 @@ class NodeEGNNTransformer(nn.Module):
 
     def setup(self):
 
+        # CLS token embedding
+        self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
+
         # Input dim -> Model dim
         self.input_dropout = nn.Dropout(self.input_dropout_prob)
         self.input_layer_nodes = nn.Dense(self.model_dim)
@@ -400,8 +414,16 @@ class NodeEGNNTransformer(nn.Module):
         self.output_net = nn.Dense(1)
 
     def __call__(self, x, mask=None, train=True):
+        
+        batch_size, num_nodes, _ = x.shape
+        
         x = self.input_dropout(x, deterministic=not train)
         x = self.input_layer_nodes(x)
+
+
+        cls_tokens = jnp.tile(self.cls_token, (batch_size, 1, 1))
+
+        x = jnp.concatenate([cls_tokens, x], axis=1)
 
         # Node Encoder
         x = self.node_encoder(x, mask=mask, train=train)
