@@ -217,7 +217,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     params = model.init(jax_seed, *init_feat)
     opt_state = opt_init(params)
 
-    loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, training=True, task=args.task)
+    loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, task=args.task)
     update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
     eval_fn = partial(evaluate, loss_fn=loss_fn, graph_transform=graph_transform, meann=meann, mad=mad, task=args.task)
 
