@@ -282,15 +282,15 @@ class TransformerPredictor(nn.Module):
 
 class EGNNTransformer(nn.Module):
 
-    num_edge_encoder_blocks: int
-    num_node_encoder_blocks: int
-    num_combined_encoder_blocks: int
+    num_edge_encoder_blocks: int = 2
+    num_node_encoder_blocks: int = 2
+    num_combined_encoder_blocks: int = 4
 
-    model_dim: int
-    num_heads: int
-    dropout_prob: float
-    edge_input_dim: int
-    node_input_dim: int
+    model_dim: int = 128
+    num_heads: int = 8
+    dropout_prob: float = 0.0
+    edge_input_dim: int = 5
+    node_input_dim: int = 19
 
     input_dropout_prob: float = 0.0
 
