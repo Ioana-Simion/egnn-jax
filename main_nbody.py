@@ -1,28 +1,27 @@
 # jax grad process from https://github.com/gerkone/egnn-jax/blob/main/validate.py
 
-import argparse
+import os
+import jax
+import jax.numpy as jnp
 import json
-from typing import Dict, Callable, Tuple, Iterable
-
 import jraph
 import torch
-from tqdm import tqdm
-
-from models.egnn_jax import get_edges_batch
-from n_body.utils import NbodyGraphTransform
-from qm9.utils import calc_mean_mad
-from utils.utils import get_model, get_loaders, set_seed
-from flax.training import train_state
-import jax.numpy as jnp
-import jax
+import pickle
 import optax
+import argparse
 import seaborn as sns
 import matplotlib.pyplot as plt
-import os
-import pickle
+from tqdm import tqdm
 from functools import partial
+from models.egnn_jax import get_edges_batch
+from n_body.utils import NbodyGraphTransform
+from typing import Dict, Callable, Tuple, Iterable
+from utils.utils import get_model, get_loaders, set_seed
+from flax.training import train_state
 
+# Seeding
 jax_seed = jax.random.PRNGKey(42)
+
 
 def _get_config_file(model_path, model_name):
     # Name of the file for storing hyperparameter details
@@ -44,15 +43,17 @@ def save_model(model, params, model_path, model_name):
         model_path - Path of the checkpoint directory
         model_name - Name of the model (str)
     """
-    #config_dict = {'hidden_sizes': model.hidden_sizes,
+    # config_dict = {'hidden_sizes': model.hidden_sizes,
     #               'num_classes': model.num_classes}
     os.makedirs(model_path, exist_ok=True)
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(model_path, model_name)
-    #with open(config_file, "w") as f:
+    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
+        model_path, model_name
+    )
+    # with open(config_file, "w") as f:
     #    json.dump(config_dict, f)
     # You can also use flax's checkpoint package. To show an alternative,
     # you can instead save the parameters simply in a pickle file.
-    with open(model_file, 'wb') as f:
+    with open(model_file, "wb") as f:
         pickle.dump(params, f)
 
 
@@ -70,18 +71,25 @@ def load_model(model_path, model_name, state=None):
         state - (Optional) If given, the parameters are loaded into this training state. Otherwise,
                 a new one is created alongside a network architecture.
     """
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(model_path, model_name)
-    assert os.path.isfile(config_file), f"Could not find the config file \"{config_file}\". Are you sure this is the correct path and you have your model config stored here?"
-    assert os.path.isfile(model_file), f"Could not find the model file \"{model_file}\". Are you sure this is the correct path and you have your model stored here?"
+    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
+        model_path, model_name
+    )
+    assert os.path.isfile(
+        config_file
+    ), f'Could not find the config file "{config_file}". Are you sure this is the correct path and you have your model config stored here?'
+    assert os.path.isfile(
+        model_file
+    ), f'Could not find the model file "{model_file}". Are you sure this is the correct path and you have your model stored here?'
     with open(config_file, "r") as f:
         config_dict = json.load(f)
     # TODO check this in depth
     net = None
     # You can also use flax's checkpoint package. To show an alternative,
     # you can instead load the parameters simply from a pickle file.
-    with open(model_file, 'rb') as f:
+    with open(model_file, "rb") as f:
         params = pickle.load(f)
     state = state.replace(params=params)
+
     return state, net
 
 
@@ -92,7 +100,7 @@ def update(
     target: jnp.ndarray,
     opt_state: optax.OptState,
     loss_fn: Callable,
-    opt_update: Callable
+    opt_update: Callable,
 ):
     loss, grads = jax.value_and_grad(loss_fn)(params, feat, target)
     updates, opt_state = opt_update(grads, opt_state, params)
@@ -128,6 +136,38 @@ def evaluate(
     return eval_loss / len(loader.dataset)
 
 
+# @jax.jit
+# def train_step(state, batch):
+#     grad_fn = jax.value_and_grad(calculate_loss)
+#     loss, grads = grad_fn(state.params, state.apply_fn, batch)
+#     state = state.apply_gradients(grads=grads)
+#     return state, loss
+#
+#
+# @jax.jit
+# def eval_step(state, batch):
+#     loss = calculate_loss(state.params, state.apply_fn, batch)
+#     return loss
+
+
+# def test_model(state, data_loader):
+#     """
+#     Test a model on a specified dataset.
+#
+#     Inputs:
+#         state - Training state including parameters and model apply function.
+#         data_loader - DataLoader object of the dataset to test on (validation or test)
+#     """
+#     true_preds, count = 0., 0
+#     for batch in data_loader:
+#         acc = eval_step(state, batch)
+#         batch_size = batch[0].shape[0]
+#         true_preds += acc * batch_size
+#         count += batch_size
+#     test_acc = true_preds / count
+#     return test_acc.item()
+
+
 def train_model(args, graph_transform, model_name, checkpoint_path):
     # # Generate model
     model = get_model(args)  # .to(args.device)
@@ -137,6 +177,11 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
     init_feat, _ = graph_transform(next(iter(train_loader)))
 
+    # Get optimization objects
+    # state = train_state.TrainState.create(
+    #    apply_fn=model.apply, params=model.init(jax.random.PRNGKey(0), init_graph),
+    #    tx=optax.adamw(args.lr, weight_decay=args.weight_decay)
+    # )
     opt_init, opt_update = optax.adamw(
         learning_rate=args.lr, weight_decay=args.weight_decay
     )
@@ -149,13 +194,32 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
     opt_state = opt_init(params)
 
+    # TODO do cosine annealing
+    # lr_schedule = optax.cosine_decay_schedule(init_value=args.lr,
+    #                                           decay_steps=args.epochs * steps_per_epoch,
+    #                                           alpha=final_lr / init_lr)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
+    # lr = args.lr
+    # weight_decay = args.weight_decay
+    #
+    # # Total number of steps (epochs * steps_per_epoch)
+    # # You would need to know or define steps_per_epoch based on your dataset
+    # total_steps = args.epochs * steps_per_epoch
+    #
+    # # Setup cosine decay for the learning rate without restarts
+    # lr_schedule = optax.cosine_decay_schedule(init_value=lr, decay_steps=total_steps, alpha=0)
+    #
+    # # Create the optimizer with weight decay
+    # optimizer = optax.chain(
+    #     optax.adam(learning_rate=lr_schedule, weight_decay=weight_decay)
+    # )
 
     train_scores = []
     val_scores = []
     test_loss = 0
     val_index = -1
 
-    for epoch in range(args.epochs):
+    for epoch in tqdm(range(args.epochs)):
         ############
         # Training #
         ############
@@ -163,10 +227,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform(batch)
             loss, params, opt_state = update_fn(
-                params=params,
-                feat=feat,
-                target=target,
-                opt_state=opt_state
+                params=params, feat=feat, target=target, opt_state=opt_state
             )
             train_loss += loss
         train_loss /= len(train_loader.dataset)
@@ -189,6 +250,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
                 val_index += 1
 
 
+
     print(f"Final Performance [Epoch {best_val_epoch + 1:2d}] Training accuracy: {train_scores[best_val_epoch]:05.4%}, "
           f"Validation accuracy: {val_scores[val_index]:4.4%}, Test accuracy: {test_loss:2.4%} ")
     results = {"test_mae": test_loss, "val_scores": val_scores[val_index],
@@ -209,6 +271,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     # plt.close()
 
     #print((f" Test accuracy: {results['test_acc']:4.4%} ").center(50, "=") + "\n")
+  
     return
 
 
@@ -276,10 +339,8 @@ if __name__ == "__main__":
         action="store_true",
         help="Use double precision",
     )
-    parser.add_argument('--model_name', type=str, default='egnn',
-                        help='model')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='random seed')
+    parser.add_argument("--model_name", type=str, default="egnn", help="model")
+    parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
 
     parsed_args = parser.parse_args()
@@ -294,4 +355,4 @@ if __name__ == "__main__":
 
     graph_transform = NbodyGraphTransform(n_nodes=5, batch_size=parsed_args.batch_size)
 
-    train_model(parsed_args, graph_transform, 'test', 'assets')
+    train_model(parsed_args, graph_transform, "test", "assets")

@@ -1,7 +1,7 @@
 # This script has been modified to return JAX arrays instead of torch Tensors.
+import torch
 import numpy as np
 import jax.numpy as jnp
-import torch
 
 
 class NBodyDataset:
