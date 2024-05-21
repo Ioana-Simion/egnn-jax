@@ -376,10 +376,10 @@ class EGNNTransformer(nn.Module):
             node_encoded, mask=None, train=train
         )
 
+        if self.predict_pos:
+            return self.output_net(node_encoded)
         # Output classifier
-        output = self.output_net(node_encoded)
-
-        return output
+        return self.output_net(node_encoded[:, 0])
 
 
 class NodeEGNNTransformer(nn.Module):
@@ -391,6 +391,8 @@ class NodeEGNNTransformer(nn.Module):
     node_input_dim: int = 19
 
     input_dropout_prob: float = 0.0
+
+    predict_pos: bool = False
 
     def setup(self):
 
@@ -428,7 +430,7 @@ class NodeEGNNTransformer(nn.Module):
         # Node Encoder
         x = self.node_encoder(x, mask=mask, train=train)
 
+        if self.predict_pos:
+            return self.output_net(x)
         # Output classifier
-        x = self.output_net(x)
-
-        return x
+        return self.output_net(x[:, 0])
