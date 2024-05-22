@@ -19,6 +19,7 @@ from models.egnn_jax import get_edges_batch
 from typing import Dict, Callable, Tuple, Iterable
 from utils.utils import get_model, get_loaders, set_seed
 from flax.training import checkpoints
+from memory_profiler import profile
 
 # Seeding
 jax_seed = jax.random.PRNGKey(42)
@@ -169,7 +170,7 @@ def denormalize(pred, meann, mad):
 def l1_loss(params, feat, target, model_fn, meann, mad, node_mask, training=True, task="graph"):
     h, x, edges, edge_attr = feat
     pred = model_fn(params, h, x, edges, edge_attr)[0]
-    
+
     # Normalize prediction and target for training
     pred = normalize(pred, meann, mad) if training else pred
     target = normalize(target, meann, mad) if training else target
@@ -181,7 +182,6 @@ def l1_loss(params, feat, target, model_fn, meann, mad, node_mask, training=True
     target_padded = target_padded * node_mask[:, None]
 
     assert pred.shape == target_padded.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target_padded.shape}"
-    
     return jnp.mean(jnp.abs(pred - target_padded))
 
 def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph"):
@@ -195,6 +195,8 @@ def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph")
     return eval_loss / len(loader)
 
 
+
+@profile
 def train_model(args, model, graph_transform, model_name, checkpoint_path):
     train_loader, val_loader, test_loader = get_loaders(args)
 
@@ -202,6 +204,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     graph_transform_fn = graph_transform(property_idx)
 
     meann, mad = compute_mean_mad(train_loader, property_idx)
+    mad = jnp.maximum(mad, 1e-6) #to not divide by zero
     print(f"Mean: {meann}, MAD: {mad}")
 
     init_feat, _ = graph_transform_fn(next(iter(train_loader)))
@@ -231,6 +234,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             train_loss += loss
         train_loss /= len(train_loader)
         train_scores.append(train_loss)
+        torch.cuda.empty_cache()
 
         ##############
         # Validation #
@@ -281,7 +285,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=100,
+        default=32,
         help="Batch size (number of graphs).",
     )
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
