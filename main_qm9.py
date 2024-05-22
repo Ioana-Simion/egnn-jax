@@ -18,43 +18,42 @@ from flax.training import train_state
 from models.egnn_jax import get_edges_batch
 from typing import Dict, Callable, Tuple, Iterable
 from utils.utils import get_model, get_loaders, set_seed
+from flax.training import checkpoints
 
 # Seeding
 jax_seed = jax.random.PRNGKey(42)
 
 
-def _get_config_file(model_path, model_name):
-    # Name of the file for storing hyperparameter details
-    return os.path.join(model_path, model_name + ".config")
+def _get_checkpoint_dir(model_path, model_name):
+    return os.path.abspath(os.path.join(model_path, model_name))
 
-
-def _get_model_file(model_path, model_name):
-    # Name of the file for storing network parameters
-    return os.path.join(model_path, model_name + ".tar")
-
-
-def save_model(model, params, model_path, model_name):
+def save_model(params, model_path, model_name):
     """
-    Given a model, we save the parameters and hyperparameters.
+    Save the model parameters using Flax's checkpoint utility.
 
     Inputs:
-        model - Network object without parameters
         params - Parameters to save of the model
         model_path - Path of the checkpoint directory
         model_name - Name of the model (str)
     """
-    # config_dict = {'hidden_sizes': model.hidden_sizes,
-    #               'num_classes': model.num_classes}
-    os.makedirs(model_path, exist_ok=True)
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
-        model_path, model_name
-    )
-    # with open(config_file, "w") as f:
-    #    json.dump(config_dict, f)
-    # You can also use flax's checkpoint package. To show an alternative,
-    # you can instead save the parameters simply in a pickle file.
-    with open(model_file, "wb") as f:
-        pickle.dump(params, f)
+    checkpoint_dir = _get_checkpoint_dir(model_path, model_name)
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    checkpoints.save_checkpoint(ckpt_dir=checkpoint_dir, target=params, step=0, overwrite=True)
+
+def load_model(model_path, model_name):
+    """
+    Load the model parameters using Flax's checkpoint utility.
+
+    Inputs:
+        model_path - Path of the checkpoint directory
+        model_name - Name of the model (str)
+    
+    Returns:
+        params - Loaded model parameters
+    """
+    checkpoint_dir = _get_checkpoint_dir(model_path, model_name)
+    params = checkpoints.restore_checkpoint(ckpt_dir=checkpoint_dir, target=None)
+    return params
 
 
 def _get_result_file(model_path, model_name):
@@ -166,20 +165,14 @@ def normalize(pred, meann, mad):
 def denormalize(pred, meann, mad):
     return mad * pred + meann
 
-@partial(jax.jit, static_argnames=["model_fn", "task"])
+@partial(jax.jit, static_argnames=["model_fn", "task", "training"])
 def l1_loss(params, feat, target, model_fn, meann, mad, node_mask, training=True, task="graph"):
     h, x, edges, edge_attr = feat
     pred = model_fn(params, h, x, edges, edge_attr)[0]
-
-    #node_mask, edge_mask = create_padding_mask(h, x, edges, edge_attr)
     
-    if training:
-        # Normalize prediction and target for training
-        pred = normalize(pred, meann, mad)
-        target = normalize(target, meann, mad)
-    else:
-        # only for eval
-        pred = denormalize(pred, meann, mad)
+    # Normalize prediction and target for training
+    pred = normalize(pred, meann, mad) if training else pred
+    target = normalize(target, meann, mad) if training else target
 
     target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
     
@@ -197,23 +190,21 @@ def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph")
         feat, target = graph_transform(data)
         h, x, edges, edge_attr = feat
         node_mask = create_padding_mask(h, x, edges, edge_attr)
-        loss = jax.lax.stop_gradient(loss_fn(params, feat, target, meann, mad, training=False))
+        loss = jax.lax.stop_gradient(loss_fn(params, feat, target, node_mask=node_mask, meann=meann, mad=mad, training=False))
         eval_loss += jax.block_until_ready(loss)
     return eval_loss / len(loader)
 
 
-def train_model(args, graph_transform, model_name, checkpoint_path):
-    # Generate model
-    model = get_model(args)
-
-    # Get loaders
+def train_model(args, model, graph_transform, model_name, checkpoint_path):
     train_loader, val_loader, test_loader = get_loaders(args)
 
     property_idx = get_property_index(args.property)
+    graph_transform_fn = graph_transform(property_idx)
+
     meann, mad = compute_mean_mad(train_loader, property_idx)
     print(f"Mean: {meann}, MAD: {mad}")
 
-    init_feat, _ = graph_transform(next(iter(train_loader)))
+    init_feat, _ = graph_transform_fn(next(iter(train_loader)))
     
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     params = model.init(jax_seed, *init_feat)
@@ -221,7 +212,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
     loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, task=args.task)
     update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
-    eval_fn = partial(evaluate, loss_fn=loss_fn, graph_transform=graph_transform, meann=meann, mad=mad, task=args.task)
+    eval_fn = partial(evaluate, loss_fn=loss_fn, graph_transform=graph_transform_fn, meann=meann, mad=mad, task=args.task)
 
     train_scores = []
     val_scores = []
@@ -233,7 +224,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         ############
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            feat, target = graph_transform(batch)
+            feat, target = graph_transform_fn(batch)
             h, x, edges, edge_attr = feat
             node_mask = create_padding_mask(h, x, edges, edge_attr)
             loss, params, opt_state = update_fn(params=params, feat=feat, target=target, node_mask=node_mask, opt_state=opt_state)
@@ -251,17 +242,23 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
             if len(val_scores) == 1 or val_loss < val_scores[best_val_epoch]:
                 print("\t   (New best performance, saving model...)")
-                save_model(model, params, checkpoint_path, model_name)
+                save_model(params, checkpoint_path, model_name)
                 best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params)
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_scores[best_val_epoch]:.6f}, "
           f"Validation loss: {val_scores[best_val_epoch]:.6f}, Test loss: {test_loss:.6f}")
-    results = {"test_mae": test_loss, "val_scores": val_scores[best_val_epoch], "train_scores": train_scores[best_val_epoch]}
+    
+    # Convert JAX arrays to native Python types before saving
+    results = {
+        "test_mae": float(test_loss),
+        "val_scores": [float(val) for val in val_scores],
+        "train_scores": [float(train) for train in train_scores]
+    }
+
     with open(_get_result_file(checkpoint_path, model_name), "w") as f:
         json.dump(results, f)
 
-    # Plot validation performance
     sns.set()
     plt.plot(range(1, len(train_scores) + 1), train_scores, label="Train")
     plt.plot(range(1, len(val_scores) + 1), val_scores, label="Val")
@@ -273,7 +270,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     plt.show()
     plt.close()
 
-    print(f" Test loss: {results['test_loss']:.6f} ".center(50, "=") + "\n")
+    print(f" Test loss: {results['test_mae']:.6f} ".center(50, "=") + "\n")
     return
 
 
@@ -284,7 +281,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=32,
+        default=100,
         help="Batch size (number of graphs).",
     )
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
@@ -357,6 +354,7 @@ if __name__ == "__main__":
     parsed_args.radius = 1000.0
     parsed_args.node_type = "continuous"
 
-    graph_transform = GraphTransform(batch_size=parsed_args.batch_size)
+    graph_transform = GraphTransform
 
-    train_model(parsed_args, graph_transform, "test", "assets")
+    model = get_model(parsed_args)
+    train_model(parsed_args, model, graph_transform, "test", "assets")

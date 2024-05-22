@@ -49,7 +49,7 @@ def collate_fn(data_list):
 def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
     if args.dataset == "qm9":
-        num_out = 19
+        num_out = 1
     elif args.dataset == "charged":
         num_out = 3
     else:
