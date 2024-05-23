@@ -9,9 +9,7 @@ For QM9, the data is already included by default and is loaded automatically whe
 
 ```sh
 
-python n_body/dataset/generate_dataset.py --initial_vel 1
-python n_body/dataset/generate_dataset.py --initial_vel 0 --length 2000 --length_test 2000
-python n_body/dataset/generate_dataset.py --n_balls 15 --initial_vel 1
+python n_body/dataset/generate_dataset.py --initial_vel 1 --num-train 3000 --length 1000 --length_test 1000 --sufix "small"
 
 ```
 
