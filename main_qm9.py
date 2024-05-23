@@ -137,10 +137,26 @@ def create_graph(h, x, edges, edge_attr):
             n_node=n_node,
             n_edge=n_edge
         )
-    
+
     return graphs_tuple
 
 def create_padding_mask(h, x, edges, edge_attr):
+    graph = create_graph(h, x, edges, edge_attr)
+
+    node_mask = jraph.get_node_padding_mask(graph)
+    #print("Automatic node mask:", node_mask)
+
+    # Manual mask creation as an alternative
+    manual_node_mask = (h.sum(axis=1) != 0).astype(jnp.float32)
+    #print("Manual node mask:", manual_node_mask)
+
+    if node_mask.sum() == 0:
+        #print("Using manual node mask -- wrong automatic mask.")
+        node_mask = manual_node_mask
+
+    return node_mask
+
+def create_padding_mask2(h, x, edges, edge_attr):
     graph = create_graph(h,x,edges,edge_attr)
 
     node_mask = jraph.get_node_padding_mask(graph)
@@ -170,10 +186,9 @@ def denormalize(pred, meann, mad):
 def l1_loss(params, feat, target, model_fn, meann, mad, node_mask, training=True, task="graph"):
     h, x, edges, edge_attr = feat
     pred = model_fn(params, h, x, edges, edge_attr)[0]
-
     # Normalize prediction and target for training
-    pred = normalize(pred, meann, mad) if training else pred
     target = normalize(target, meann, mad) if training else target
+    pred = normalize(pred, meann, mad) if training else pred
 
     target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
     
@@ -194,7 +209,33 @@ def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph")
         eval_loss += jax.block_until_ready(loss)
     return eval_loss / len(loader)
 
+def debug_step(params, feat, target, node_mask, model_fn, meann, mad, training=True, file_path="log.txt"):
+    h, x, edges, edge_attr = feat
+    pred = model_fn(params, h, x, edges, edge_attr)[0]
 
+    print(f'are we training? {training}')
+    # Normalize prediction and target for training
+    target = normalize(target, meann, mad) if training else target
+    pred = normalize(pred, meann, mad) if training else pred
+
+    pred_val1 = jax.device_get(pred)
+    target_val1 = jax.device_get(target)
+    target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
+    target_val2 = jax.device_get(target_padded)
+    # Apply the mask to the predictions and targets
+    pred = pred * node_mask[:, None]
+    target_padded = target_padded * node_mask[:, None]
+
+    pred_val = jax.device_get(pred)
+    target_val = jax.device_get(target_padded)
+    with open(file_path, "a") as file:
+        file.write(f"Raw Prediction: {pred_val1}\n")
+        file.write(f"Normalized Prediction: {pred_val}\n")
+        file.write(f"Target: {target_val1}\n")
+        file.write(f"Padded Target: {target_val2}\n")
+        file.write(f"Normalized Target: {target_val}\n")
+        
+    return jnp.mean(jnp.abs(pred - target_padded))
 
 @profile
 def train_model(args, model, graph_transform, model_name, checkpoint_path):
@@ -227,9 +268,13 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         ############
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
+        #for batch_idx, batch in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False)):
             feat, target = graph_transform_fn(batch)
             h, x, edges, edge_attr = feat
             node_mask = create_padding_mask(h, x, edges, edge_attr)
+            #if batch_idx % 10 == 0:
+            #    debug_step(params, feat, target, node_mask, model.apply, meann, mad)
+
             loss, params, opt_state = update_fn(params=params, feat=feat, target=target, node_mask=node_mask, opt_state=opt_state)
             train_loss += loss
         train_loss /= len(train_loader)
