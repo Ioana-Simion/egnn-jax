@@ -1,108 +1,43 @@
-# jax grad process from https://github.com/gerkone/egnn-jax/blob/main/validate.py
-
 import os
 import jax
 import jraph
 import json
-import torch
-import pickle
 import optax
 import argparse
 import jax.numpy as jnp
-import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from functools import partial
 from qm9.utils import GraphTransform
-from flax.training import train_state
-from models.egnn_jax import get_edges_batch
-from typing import Dict, Callable, Tuple, Iterable
-from utils.utils import get_model, get_loaders, set_seed
 from flax.training import checkpoints
-from memory_profiler import profile
+from typing import Callable
+from utils.utils import get_model, get_loaders, set_seed
+import gc
 
 # Seeding
 jax_seed = jax.random.PRNGKey(42)
-
 
 def _get_checkpoint_dir(model_path, model_name):
     return os.path.abspath(os.path.join(model_path, model_name))
 
 def save_model(params, model_path, model_name):
-    """
-    Save the model parameters using Flax's checkpoint utility.
-
-    Inputs:
-        params - Parameters to save of the model
-        model_path - Path of the checkpoint directory
-        model_name - Name of the model (str)
-    """
     checkpoint_dir = _get_checkpoint_dir(model_path, model_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
     checkpoints.save_checkpoint(ckpt_dir=checkpoint_dir, target=params, step=0, overwrite=True)
 
 def load_model(model_path, model_name):
-    """
-    Load the model parameters using Flax's checkpoint utility.
-
-    Inputs:
-        model_path - Path of the checkpoint directory
-        model_name - Name of the model (str)
-    
-    Returns:
-        params - Loaded model parameters
-    """
     checkpoint_dir = _get_checkpoint_dir(model_path, model_name)
     params = checkpoints.restore_checkpoint(ckpt_dir=checkpoint_dir, target=None)
     return params
 
-
 def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
-
-def load_model(model_path, model_name, state=None):
-    """
-    Loads a saved model from disk.
-
-    Inputs:
-        model_path - Path of the checkpoint directory
-        model_name - Name of the model (str)
-        state - (Optional) If given, the parameters are loaded into this training state. Otherwise,
-                a new one is created alongside a network architecture.
-    """
-    config_file, model_file = _get_config_file(model_path, model_name), _get_model_file(
-        model_path, model_name
-    )
-    assert os.path.isfile(
-        config_file
-    ), f'Could not find the config file "{config_file}". Are you sure this is the correct path and you have your model config stored here?'
-    assert os.path.isfile(
-        model_file
-    ), f'Could not find the model file "{model_file}". Are you sure this is the correct path and you have your model stored here?'
-    with open(config_file, "r") as f:
-        config_dict = json.load(f)
-    # TODO check this in depth
-    net = None
-    # You can also use flax's checkpoint package. To show an alternative,
-    # you can instead load the parameters simply from a pickle file.
-    with open(model_file, "rb") as f:
-        params = pickle.load(f)
-    state = state.replace(params=params)
-    return state, net
-
-
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update"])
-def update(
-    params,
-    feat,
-    target: jnp.ndarray,
-    node_mask,
-    opt_state: optax.OptState,
-    loss_fn: Callable,
-    opt_update: Callable,
-):
-    loss, grads = jax.value_and_grad(loss_fn)(params, feat, target, node_mask=node_mask)
+def update(params, feat, target, node_mask, opt_state, loss_fn, opt_update):
+    #using jax grad only instead of value and grad
+    grads = jax.grad(loss_fn)(params, feat, target, node_mask=node_mask)
+    loss = loss_fn(params, feat, target, node_mask=node_mask)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
@@ -124,7 +59,6 @@ def get_property_index(property_name):
     return property_dict[property_name]
 
 def create_graph(h, x, edges, edge_attr):
-    
     n_node = jnp.array([h.shape[0]])
     n_edge = jnp.array([edges.shape[1]])
 
@@ -142,27 +76,12 @@ def create_graph(h, x, edges, edge_attr):
 
 def create_padding_mask(h, x, edges, edge_attr):
     graph = create_graph(h, x, edges, edge_attr)
-
     node_mask = jraph.get_node_padding_mask(graph)
-    #print("Automatic node mask:", node_mask)
-
-    # Manual mask creation as an alternative
     manual_node_mask = (h.sum(axis=1) != 0).astype(jnp.float32)
-    #print("Manual node mask:", manual_node_mask)
 
     if node_mask.sum() == 0:
-        #print("Using manual node mask -- wrong automatic mask.")
         node_mask = manual_node_mask
 
-    return node_mask
-
-def create_padding_mask2(h, x, edges, edge_attr):
-    graph = create_graph(h,x,edges,edge_attr)
-
-    node_mask = jraph.get_node_padding_mask(graph)
-    #not used now, skipped for efficiency
-    #edge_mask = jraph.get_edge_padding_mask(graph)
-    
     return node_mask
 
 def compute_mean_mad(dataloader, property_idx):
@@ -171,10 +90,8 @@ def compute_mean_mad(dataloader, property_idx):
         values.append(jnp.array(batch.y[:, property_idx].numpy()))
     values = jnp.concatenate(values)
     meann = jnp.mean(values)
-    ma = jnp.abs(values - meann)
-    mad = jnp.mean(ma)
+    mad = jnp.mean(jnp.abs(values - meann))
     return meann, mad
-
 
 def normalize(pred, meann, mad):
     return (pred - meann) / mad
@@ -186,13 +103,10 @@ def denormalize(pred, meann, mad):
 def l1_loss(params, feat, target, model_fn, meann, mad, node_mask, training=True, task="graph"):
     h, x, edges, edge_attr = feat
     pred = model_fn(params, h, x, edges, edge_attr)[0]
-    # Normalize prediction and target for training
     target = normalize(target, meann, mad) if training else target
     pred = normalize(pred, meann, mad) if training else pred
 
     target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
-    
-    # Apply the mask to the predictions and targets
     pred = pred * node_mask[:, None]
     target_padded = target_padded * node_mask[:, None]
 
@@ -201,43 +115,14 @@ def l1_loss(params, feat, target, model_fn, meann, mad, node_mask, training=True
 
 def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph"):
     eval_loss = 0.0
-    for data in loader:
+    for data in tqdm(loader, desc="Evaluating", leave=False):
         feat, target = graph_transform(data)
         h, x, edges, edge_attr = feat
         node_mask = create_padding_mask(h, x, edges, edge_attr)
-        loss = jax.lax.stop_gradient(loss_fn(params, feat, target, node_mask=node_mask, meann=meann, mad=mad, training=False))
-        eval_loss += jax.block_until_ready(loss)
+        loss = loss_fn(params, feat, target, node_mask=node_mask, meann=meann, mad=mad, training=False)
+        eval_loss += loss
     return eval_loss / len(loader)
 
-def debug_step(params, feat, target, node_mask, model_fn, meann, mad, training=True, file_path="log.txt"):
-    h, x, edges, edge_attr = feat
-    pred = model_fn(params, h, x, edges, edge_attr)[0]
-
-    print(f'are we training? {training}')
-    # Normalize prediction and target for training
-    target = normalize(target, meann, mad) if training else target
-    pred = normalize(pred, meann, mad) if training else pred
-
-    pred_val1 = jax.device_get(pred)
-    target_val1 = jax.device_get(target)
-    target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
-    target_val2 = jax.device_get(target_padded)
-    # Apply the mask to the predictions and targets
-    pred = pred * node_mask[:, None]
-    target_padded = target_padded * node_mask[:, None]
-
-    pred_val = jax.device_get(pred)
-    target_val = jax.device_get(target_padded)
-    with open(file_path, "a") as file:
-        file.write(f"Raw Prediction: {pred_val1}\n")
-        file.write(f"Normalized Prediction: {pred_val}\n")
-        file.write(f"Target: {target_val1}\n")
-        file.write(f"Padded Target: {target_val2}\n")
-        file.write(f"Normalized Target: {target_val}\n")
-        
-    return jnp.mean(jnp.abs(pred - target_padded))
-
-@profile
 def train_model(args, model, graph_transform, model_name, checkpoint_path):
     train_loader, val_loader, test_loader = get_loaders(args)
 
@@ -263,30 +148,24 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     test_loss, best_val_epoch = 0, 0
 
     for epoch in range(args.epochs):
-        ############
-        # Training #
-        ############
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-        #for batch_idx, batch in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False)):
             feat, target = graph_transform_fn(batch)
             h, x, edges, edge_attr = feat
             node_mask = create_padding_mask(h, x, edges, edge_attr)
-            #if batch_idx % 10 == 0:
-            #    debug_step(params, feat, target, node_mask, model.apply, meann, mad)
-
             loss, params, opt_state = update_fn(params=params, feat=feat, target=target, node_mask=node_mask, opt_state=opt_state)
             train_loss += loss
-        train_loss /= len(train_loader)
-        train_scores.append(train_loss)
-        torch.cuda.empty_cache()
 
-        ##############
-        # Validation #
-        ##############
+            # Manually trigger garbage collection
+            gc.collect()
+            jax.clear_caches()
+
+        train_loss /= len(train_loader)
+        train_scores.append(float(jax.device_get(train_loss)))
+
         if epoch % args.val_freq == 0:
             val_loss = eval_fn(val_loader, params)
-            val_scores.append(val_loss)
+            val_scores.append(float(jax.device_get(val_loss)))
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
 
             if len(val_scores) == 1 or val_loss < val_scores[best_val_epoch]:
@@ -294,13 +173,13 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 save_model(params, checkpoint_path, model_name)
                 best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params)
+                jax.clear_caches()
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_scores[best_val_epoch]:.6f}, "
-          f"Validation loss: {val_scores[best_val_epoch]:.6f}, Test loss: {test_loss:.6f}")
+          f"Validation loss: {val_scores[best_val_epoch]:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
     
-    # Convert JAX arrays to native Python types before saving
     results = {
-        "test_mae": float(test_loss),
+        "test_mae": float(jax.device_get(test_loss)),
         "val_scores": [float(val) for val in val_scores],
         "train_scores": [float(train) for train in train_scores]
     }
@@ -308,7 +187,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     with open(_get_result_file(checkpoint_path, model_name), "w") as f:
         json.dump(results, f)
 
-    sns.set()
     plt.plot(range(1, len(train_scores) + 1), train_scores, label="Train")
     plt.plot(range(1, len(val_scores) + 1), val_scores, label="Val")
     plt.xlabel("Epochs")
@@ -394,7 +272,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_samples", type=int, default=3000)
 
     parsed_args = parser.parse_args()
-    parsed_args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #parsed_args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     set_seed(parsed_args.seed)
 
