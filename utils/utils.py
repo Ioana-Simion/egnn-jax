@@ -85,9 +85,9 @@ def get_loaders(args: Namespace, transformer=False) -> Tuple[DataLoader, DataLoa
             val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
             test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, collate_fn=collate_fn)
         else:
-            train_loader = GDataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True)
-            val_loader = GDataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size)
-            test_loader = GDataLoader(dataset[num_train+num_val:], batch_size=args.batch_size)
+            train_loader = GDataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, drop_last=True, pin_memory=True)
+            val_loader = GDataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, drop_last=True, pin_memory=True)
+            test_loader = GDataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, drop_last=True, pin_memory=True)
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
     else:
