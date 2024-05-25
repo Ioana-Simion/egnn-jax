@@ -1,5 +1,5 @@
 # jax grad process from https://github.com/gerkone/egnn-jax/blob/main/validate.py
-
+import itertools
 import os
 import jax
 import jax.numpy as jnp
@@ -196,7 +196,6 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
     opt_state = opt_init(params)
 
-    # TODO do cosine annealing
     # lr_schedule = optax.cosine_decay_schedule(init_value=args.lr,
     #                                           decay_steps=args.epochs * steps_per_epoch,
     #                                           alpha=final_lr / init_lr)
@@ -221,7 +220,8 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     test_loss = 0
     val_index = -1
 
-    for epoch in tqdm(range(args.epochs)):
+
+    for epoch in range(args.epochs):
         ############
         # Training #
         ############
@@ -234,6 +234,8 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
             )
             train_loss += loss
             num_batches += 1
+            if num_batches > 30:
+                break
         train_loss /= num_batches
         train_scores.append(train_loss)
 
@@ -244,7 +246,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
             val_loss = eval_fn(val_loader, params)
 
             val_scores.append(val_loss)
-            print(f"[Epoch {epoch + 1:2d}] Training accuracy: {train_loss:4.4%}, Validation accuracy: {val_loss:4.4%}")
+            print(f"[Epoch {epoch + 1:2d}] Training mse: {train_loss}, Validation mse: {val_loss}")
 
             if len(val_scores) == 1 or val_loss < val_scores[val_index]:
                 print("\t   (New best performance, saving model...)")
@@ -252,11 +254,28 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
                 best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params)
                 val_index += 1
+        if epoch % 50 == 0:
+            x_train = list(range(0, len(train_scores)))
+            x_val = list(range(0, len(val_scores) * 10, 10))
+
+            # Create the plot
+            plt.figure(figsize=(10, 6))
+            plt.plot(x_train, train_scores, label='Train Scores', marker='o')
+            plt.plot(x_val, val_scores, label='Validation Scores', marker='s')
+
+            # Adding titles and labels
+            plt.title('Training and Validation Scores')
+            plt.xlabel('Epochs')
+            plt.ylabel('Scores')
+            plt.legend()
+            plt.grid(True)
+            plt.ylim(0, 0.1)
+            # Show plot
+            plt.show()
 
 
-
-    print(f"Final Performance [Epoch {best_val_epoch + 1:2d}] Training accuracy: {train_scores[best_val_epoch]:05.4%}, "
-          f"Validation accuracy: {val_scores[val_index]:4.4%}, Test accuracy: {test_loss:2.4%} ")
+    print(f"Final Performance [Epoch {best_val_epoch + 1:2d}] Training mse: {train_scores[best_val_epoch]}, "
+          f"Validation mse: {val_scores[val_index]}, Test mse: {test_loss} ")
     results = {"test_mae": test_loss, "val_scores": val_scores[val_index],
                "train_scores": train_scores[best_val_epoch]}
     #with open(_get_result_file(checkpoint_path, model_name), "w") as f:
@@ -282,7 +301,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Run parameters
-    parser.add_argument("--epochs", type=int, default=23, help="Number of epochs")
+    parser.add_argument("--epochs", type=int, default=10000, help="Number of epochs")
     parser.add_argument(
         "--batch_size",
         type=int,
@@ -343,7 +362,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Use double precision",
     )
-    parser.add_argument("--model_name", type=str, default="egnn", help="model")
+    parser.add_argument("--model_name", type=str, default="egnn_vel", help="model")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
 

@@ -49,12 +49,18 @@ def NbodyGraphTransform(
         edge_indices = full_edge_indices[:, : n_nodes * (n_nodes - 1) * cur_batch]
         rows, cols = edge_indices[0], edge_indices[1]
 
-        nodes = jnp.ones((pos.shape[0], 1))  # all input nodes are set to 1
-        loc_dist = jnp.sum((pos[rows] - pos[cols]) ** 2, axis=-1)[:, None]
+        # nodes = jnp.ones((pos.shape[0], 1))  # all input nodes are set to 1
+        # loc_dist = jnp.sum((pos[rows] - pos[cols]) ** 2, axis=-1)[:, None]
         vel_attr = get_velocity_attr(pos, vel, rows, cols)
-        # TODO velocity is not mandatory make optional
-        edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], 1)
-        # for egnn equivalent: nodes = h, pos = x,
-        return (nodes, pos, edge_indices, edge_attr), targets
+        # # TODO velocity is not mandatory make optional
+        # edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], 1)
+
+        magnitudes = jnp.sqrt(jnp.sum(vel ** 2, axis=1))
+        nodes = jnp.expand_dims(magnitudes, axis=1)
+
+        loc_dist = jnp.expand_dims(jnp.sum((pos[rows] - pos[cols]) ** 2, 1), axis=1)
+        edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], axis=1)
+        # add velocities here to return
+        return (nodes, pos, edge_indices, vel, edge_attr), targets
 
     return _to_jraph

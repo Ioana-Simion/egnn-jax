@@ -63,7 +63,14 @@ def get_model(args: Namespace) -> nn.Module:
             out_node_nf=num_out,
             n_layers=args.num_layers,
         )
+    elif args.model_name == "egnn_vel":
+        from models.egnn_jax import EGNN_vel
 
+        model = EGNN_vel(
+            hidden_nf=args.num_hidden,
+            out_node_nf=num_out,
+            n_layers=args.num_layers,
+        )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")
 
