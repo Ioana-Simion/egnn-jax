@@ -69,7 +69,7 @@ def get_model(args: Namespace) -> nn.Module:
         model = EGNNTransformer(
             num_edge_encoder_blocks=args.num_edge_encoders,
             num_node_encoder_blocks=args.num_node_encoders,
-            num_combined_encoder_blocks= args.num_combined_encoders,
+            num_combined_encoder_blocks= args.num_combined_encoder_blocks,
 
             model_dim=args.dim,
             num_heads=args.heads,

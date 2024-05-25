@@ -31,37 +31,45 @@ def load_model(model_path, model_name):
 def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
-@partial(jax.jit, static_argnames=["loss_fn", "opt_update"])
-def update(params, x, y, opt_state, loss_fn, opt_update):
-    grads = jax.grad(loss_fn)(params, x, y)
-    loss = loss_fn(params, x, y)
+@partial(jax.jit, static_argnames=["opt_update", "model_fn"])
+def update(params, edge_attr, node_attr, target, opt_state, rng, model_fn, opt_update):
+    rng, dropout_rng = jax.random.split(rng)
+    grads = jax.grad(mse_loss)(params, edge_attr, node_attr, target, dropout_rng, model_fn)
+    loss = mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn)
     updates, opt_state = opt_update(grads, opt_state, params)
-    return loss, optax.apply_updates(params, updates), opt_state
+    return loss, optax.apply_updates(params, updates), opt_state, rng
 
 @partial(jax.jit, static_argnames=["model_fn"])
-def mse_loss(params, x, y, model_fn):
-    pred = model_fn(params, x, train=True)
-    return jnp.mean((pred - y) ** 2)
+def mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn):
+    variables = {'params': params}
+    rngs = {'dropout': dropout_rng}
+    pred = model_fn(variables, edge_attr, node_attr, train=True, rngs=rngs)
+    return jnp.mean((pred - target) ** 2)
 
-def evaluate(loader, params, loss_fn, model_fn):
+def evaluate(loader, params, rng, model_fn):
     eval_loss = 0.0
     for data in tqdm(loader, desc="Evaluating", leave=False):
-        x, edge_attr, pos, mask, edge_mask, y = data
-        loss = loss_fn(params, (edge_attr, x), y, model_fn)
+        edge_attr, node_attr, _, _, _, target = data
+        edge_attr = jnp.array(edge_attr)
+        node_attr = jnp.array(node_attr)
+        target = jnp.array(target)
+        _, dropout_rng = jax.random.split(rng)
+        loss = mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn)
         eval_loss += loss
     return eval_loss / len(loader)
 
 def train_model(args, model, model_name, checkpoint_path):
     train_loader, val_loader, test_loader = get_loaders(args, transformer=True)
 
-    init_feat, _, _, _, _, _ = next(iter(train_loader))
+    init_edge_attr, init_node_attr, _, _, _, _ = next(iter(train_loader))
+    init_edge_attr = jnp.array(init_edge_attr)
+    init_node_attr = jnp.array(init_node_attr)
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
-    params = model.init(jax_seed, *init_feat)
+    rng, init_rng = jax.random.split(jax_seed)
+    params = model.init(init_rng, edge_inputs=init_edge_attr, node_inputs=init_node_attr)['params']
     opt_state = opt_init(params)
 
-    loss_fn = partial(mse_loss, model_fn=model.apply)
-    update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
-    eval_fn = partial(evaluate, loss_fn=loss_fn, model_fn=model.apply)
+    update_fn = partial(update, model_fn=model.apply, opt_update=opt_update)
 
     train_scores = []
     val_scores = []
@@ -70,8 +78,11 @@ def train_model(args, model, model_name, checkpoint_path):
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            x, edge_attr, pos, mask, edge_mask, y = batch
-            loss, params, opt_state = update_fn(params=params, x=(edge_attr, x), y=y, opt_state=opt_state)
+            edge_attr, node_attr, _, _, _, target = batch
+            edge_attr = jnp.array(edge_attr)
+            node_attr = jnp.array(node_attr)
+            target = jnp.array(target)
+            loss, params, opt_state, rng = update_fn(params=params, edge_attr=edge_attr, node_attr=node_attr, target=target, opt_state=opt_state, rng=rng)
             train_loss += loss
 
             # Manually trigger garbage collection
@@ -82,16 +93,21 @@ def train_model(args, model, model_name, checkpoint_path):
         train_scores.append(float(jax.device_get(train_loss)))
 
         if epoch % args.val_freq == 0:
-            val_loss = eval_fn(val_loader, params)
+            val_loss = evaluate(val_loader, params, rng, model.apply)
             val_scores.append(float(jax.device_get(val_loss)))
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
 
-            if len(val_scores) == 1 or val_loss < val_scores[best_val_epoch]:
+            if len(val_scores) == 1 or val_loss < min(val_scores):
                 print("\t   (New best performance, saving model...)")
                 save_model(params, checkpoint_path, model_name)
-                best_val_epoch = epoch
-                test_loss = eval_fn(test_loader, params)
+                best_val_epoch = len(val_scores) - 1
+                test_loss = evaluate(test_loader, params, rng, model.apply)
                 jax.clear_caches()
+
+    if val_scores:
+        best_val_epoch = val_scores.index(min(val_scores))
+    else:
+        best_val_epoch = 0
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_scores[best_val_epoch]:.6f}, "
           f"Validation loss: {val_scores[best_val_epoch]:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
