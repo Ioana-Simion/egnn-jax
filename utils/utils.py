@@ -66,7 +66,20 @@ def get_model(args: Namespace) -> nn.Module:
             out_node_nf=num_out,
             n_layers=args.num_layers,
         )
+    if args.model_name  =="transformer":
+        from models.transformer import EGNNTransformer
 
+        model = EGNNTransformer(
+            num_edge_encoder_blocks=args.num_edge_encoders,
+            num_node_encoder_blocks=args.num_node_encoders,
+            num_combined_encoder_blocks= args.num_combined_encoder_blocks,
+
+            model_dim=args.dim,
+            num_heads=args.heads,
+            dropout_prob=args.dropout,
+            edge_input_dim= args.edge_input_dim,
+            node_input_dim= args.node_input_dim,
+        )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")
 
