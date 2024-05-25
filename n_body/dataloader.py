@@ -16,9 +16,11 @@ def numpy_collate(batch):
 
 # Utility function added for fetching datasets
 def get_nbody_dataloaders(args) -> Tuple[DataLoader, DataLoader, DataLoader]:
-    dataset_train = NBodyDataset(partition="train", max_samples=args.max_samples)
-    dataset_val = NBodyDataset(partition="val")
-    dataset_test = NBodyDataset(partition="test")
+    dataset_train = NBodyDataset(
+        partition="train", max_samples=args.max_samples, dataset_name=args.nbody_name
+    )
+    dataset_val = NBodyDataset(partition="val", dataset_name=args.nbody_name)
+    dataset_test = NBodyDataset(partition="test", dataset_name=args.nbody_name)
 
     loader_train = DataLoader(
         dataset_train,
