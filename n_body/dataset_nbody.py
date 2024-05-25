@@ -10,7 +10,7 @@ class NBodyDataset:
 
     """
 
-    def __init__(self, partition="train", max_samples=1e8, dataset_name="nbody"):
+    def __init__(self, partition="train", max_samples=1e8, dataset_name="nbody_small"):
         self.partition = partition
         if self.partition == "val":
             self.sufix = "valid"
