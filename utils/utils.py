@@ -59,7 +59,8 @@ def get_collate_fn_egnn(dataset):
     def _collate_fn_egnn(data_list):
         x = [d.x for d in data_list]
         x[0] = torch.cat([x[0], torch.zeros(max_num_nodes - x[0].size(0), x[0].size(1))], dim=0)
-        x = pad_sequence(x, batch_first=True, padding_value=0.0).reshape(x.shape[0] * x.shape[1], -1)
+        x = pad_sequence(x, batch_first=True, padding_value=0.0)
+        x = x.reshape(x.shape[0] * x.shape[1], -1)
 
         y = torch.stack([d.y for d in data_list])
 
@@ -75,11 +76,14 @@ def get_collate_fn_egnn(dataset):
 
         edge_attr = [d.edge_attr for d in data_list]
         edge_attr[0] = torch.cat([edge_attr[0], torch.zeros(max_num_edges - edge_attr[0].size(0), edge_attr[0].size(1))], dim=0)
-        edge_attr = pad_sequence(edge_attr, batch_first=True, padding_value=0.0).reshape(edge_attr.shape[0] * edge_attr.shape[1], -1)
+        edge_attr = pad_sequence(edge_attr, batch_first=True, padding_value=0.0)
+        edge_attr = edge_attr.reshape(edge_attr.shape[0] * edge_attr.shape[1], -1)
+
         
         pos = [d.pos for d in data_list]
         pos[0] = torch.cat([pos[0], torch.zeros(max_num_nodes - pos[0].size(0), pos[0].size(1))], dim=0)
-        pos = pad_sequence(pos, batch_first=True, padding_value=0.0).reshape(pos.shape[0] * pos.shape[1], -1)
+        pos = pad_sequence(pos, batch_first=True, padding_value=0.0)
+        pos = pos.reshape(pos.shape[0] * pos.shape[1], -1)
         
         #node_mask = torch.where(x.sum(dim=-1) == 0, 1, 0)
         #edge_mask = torch.where(edge_attr.sum(dim=-1) == 0, 1, 0)
