@@ -85,7 +85,7 @@ def NbodyGraphTransform(
         nodes = jnp.concatenate((nodes, charges), axis=1)
 
         loc_dist = jnp.expand_dims(jnp.sum((pos[rows] - pos[cols]) ** 2, 1), axis=1)
-        edge_attr = jnp.concatenate([ loc_dist], axis=1)#edge_attribute, vel_attr,
+        edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], axis=1)
 
         dim_target = targets.shape[1]
 
@@ -102,7 +102,7 @@ def NbodyGraphTransform(
         vel = jnp.reshape(vel, (batch_size, n_nodes, dim_target))
         return (nodes, edge_attr, pos, vel), targets
 
-    if model == 'egnn':
+    if model == 'egnn' or model == 'egnn_vel':
         return _to_egnn
     else:
         return _to_transformer
