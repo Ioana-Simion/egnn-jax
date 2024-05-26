@@ -128,49 +128,15 @@ def evaluate(
     params,
     loss_fn: Callable,
     graph_transform: Callable,
-    rng,
 ) -> float:
     eval_loss = 0.0
     num_batches = 0
     for data in loader:
-        _, dropout_rng = jax.random.split(rng)
         feat, target = graph_transform(data)
-        loss = jax.lax.stop_gradient(loss_fn(params, feat, target, dropout_rng))
+        loss = jax.lax.stop_gradient(loss_fn(params, feat, target))
         eval_loss += jax.block_until_ready(loss)
         num_batches += 1
     return eval_loss / num_batches
-
-
-# @jax.jit
-# def train_step(state, batch):
-#     grad_fn = jax.value_and_grad(calculate_loss)
-#     loss, grads = grad_fn(state.params, state.apply_fn, batch)
-#     state = state.apply_gradients(grads=grads)
-#     return state, loss
-#
-#
-# @jax.jit
-# def eval_step(state, batch):
-#     loss = calculate_loss(state.params, state.apply_fn, batch)
-#     return loss
-
-
-# def test_model(state, data_loader):
-#     """
-#     Test a model on a specified dataset.
-#
-#     Inputs:
-#         state - Training state including parameters and model apply function.
-#         data_loader - DataLoader object of the dataset to test on (validation or test)
-#     """
-#     true_preds, count = 0., 0
-#     for batch in data_loader:
-#         acc = eval_step(state, batch)
-#         batch_size = batch[0].shape[0]
-#         true_preds += acc * batch_size
-#         count += batch_size
-#     test_acc = true_preds / count
-#     return test_acc.item()
 
 
 def train_model(args, graph_transform, model_name, checkpoint_path):
@@ -330,7 +296,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--val_freq",
         type=int,
-        default=10,
+        default=1,
         help="Evaluation frequency (number of epochs)",
     )
 
@@ -342,6 +308,8 @@ if __name__ == "__main__":
         help="Dataset",
         choices=["charged", "gravity"],
     )
+
+    parser.add_argument("--nbody_path", default='n_body/dataset/data/')
 
     # Model parameters
     parser.add_argument(

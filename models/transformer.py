@@ -343,7 +343,7 @@ class EGNNTransformer(nn.Module):
         self.output_net = nn.Dense(5 * 3)
 
 
-    def __call__(self, node_inputs, edge_inputs, coords, cross_mask=None, train=True):#x, edges, vel,
+    def __call__(self, node_inputs, edge_inputs, coords, vel, cross_mask=None, train=True):#x, edges, vel,
 
         batch_size, _, _ = node_inputs.shape
 
@@ -381,7 +381,7 @@ class EGNNTransformer(nn.Module):
 
         output = self.output_net(node_encoded)
         output = jnp.reshape(output, (batch_size, 5, 3))
-        output_coords = coords + output
+        output_coords = coords + output * vel
         return output_coords
 
 

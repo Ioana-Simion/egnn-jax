@@ -100,7 +100,7 @@ def NbodyGraphTransform(
         targets = jnp.reshape(targets, (batch_size, n_nodes, dim_target))
 
         pos = jnp.reshape(pos, (batch_size, n_nodes, dim_target))
-        return (nodes, edge_attr, pos), targets
+        return (nodes, edge_attr, pos, vel), targets
 
     if model == 'egnn':
         return _to_egnn
