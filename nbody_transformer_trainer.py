@@ -207,7 +207,7 @@ if __name__ == "__main__":
         help="Which n_body dataset to use",
         choices=["nbody", "nbody_small"],
     )
-    parser.add_argument('--train_from_checkpoint', action='store_false', default=True,
+    parser.add_argument('--train_from_checkpoint', action='store_true', default=False,
                         help='Enables training form checkpoint')
 
     # Model parameters
