@@ -282,6 +282,6 @@ if __name__ == "__main__":
     parsed_args.node_type = "continuous"
 
     graph_transform = TransformDLBatches
-
+    
     model = get_model(parsed_args)
     train_model(parsed_args, model, graph_transform, "test", "assets")

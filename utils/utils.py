@@ -87,7 +87,7 @@ def get_model(args: Namespace) -> nn.Module:
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
-    if args.model_name == "egnn":
+    if args.model_name == 'egnn':
         from models.egnn_jax import EGNN
 
         model = EGNN(
@@ -95,7 +95,7 @@ def get_model(args: Namespace) -> nn.Module:
             out_node_nf=num_out,
             n_layers=args.num_layers,
         )
-    if args.model_name  =="transformer":
+    elif args.model_name == 'transformer':
         from models.transformer import EGNNTransformer
 
         model = EGNNTransformer(
@@ -135,7 +135,7 @@ def get_loaders(
             test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn)
 
         else:
-            dataset = QM9(root='data/QM9', pre_transform=T.Compose(RemoveNumHs()))
+            dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
             train_loader = GDataLoader(
                 dataset[:num_train],
                 batch_size=args.batch_size,
