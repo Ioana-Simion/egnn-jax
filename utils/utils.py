@@ -47,6 +47,15 @@ def collate_fn(data_list):
 
     return x, edge_attr, pos, mask, edge_mask, y
 
+def collate_fn_egnn(data_list):
+    x_list = [d.x for d in data_list]
+    x = pad_sequence(x_list, batch_first=True, padding_value=0.0)
+    y = torch.stack([d.y for d in data_list])
+    edge_attr_list = [d.edge_attr for d in data_list]
+    edge_attr = pad_sequence(edge_attr_list, batch_first=True, padding_value=0.0)
+    pos_list = [d.pos for d in data_list]
+    pos = pad_sequence(pos_list, batch_first=True, padding_value=0.0)
+    
 
 def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
