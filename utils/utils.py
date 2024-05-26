@@ -49,7 +49,7 @@ def collate_fn(data_list):
 
     return x, edge_attr, pos, mask, edge_mask, y
 
-def get_collate_fn_egnn(dataset):
+def get_collate_fn_egnn(dataset, meann, mad):
     print("calculating max num nodes and edges")
     max_num_nodes = max([len(x.x) for x in dataset])
     max_num_edges = max([x.edge_index.shape[-1] for x in dataset])
@@ -61,8 +61,9 @@ def get_collate_fn_egnn(dataset):
         x[0] = torch.cat([x[0], torch.zeros(max_num_nodes - x[0].size(0), x[0].size(1))], dim=0)
         x = pad_sequence(x, batch_first=True, padding_value=0.0)
         x = x.reshape(x.shape[0] * x.shape[1], -1)
-
-        y = torch.stack([d.y for d in data_list])
+        
+        # Normalize target
+        y = torch.stack([normalize(d.y, meann, mad) for d in data_list])
 
         edge_index = []
         start_idx = 0
@@ -89,6 +90,41 @@ def get_collate_fn_egnn(dataset):
         #edge_mask = torch.where(edge_attr.sum(dim=-1) == 0, 1, 0)
         return x, edge_attr, edge_index, pos, y
     return _collate_fn_egnn
+
+def normalize(pred, meann, mad):
+    return (pred - meann) / mad
+
+def denormalize(pred, meann, mad):
+    return mad * pred + meann
+
+
+def get_property_index(property_name):
+    property_dict = {
+        'alpha': 0,
+        'gap': 1,
+        'homo': 2,
+        'lumo': 3,
+        'mu': 4,
+        'Cv': 5,
+        'G': 6,
+        'H': 7,
+        'r2': 8,
+        'U': 9,
+        'U0': 10,
+        'zpve': 11
+    }
+    return property_dict[property_name]
+
+
+def compute_meann_mad(dataset, property_idx):
+    values = []
+    for data in dataset:
+        values.append(data.y[:, property_idx].numpy())
+    values = np.concatenate(values)
+    meann = np.mean(values)
+    mad = np.mean(np.abs(values - meann))
+    return meann, mad
+
 
 def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
@@ -127,7 +163,7 @@ def get_model(args: Namespace) -> nn.Module:
     return model
 
 
-def get_loaders(
+def get_loaders_and_statistics(
     args: Namespace, transformer=False
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """Return dataloaders based on dataset."""
@@ -149,7 +185,10 @@ def get_loaders(
 
         else:
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
-            collate_fn_egnn = get_collate_fn_egnn(dataset)
+            
+            meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
+
+            collate_fn_egnn = get_collate_fn_egnn(dataset, meann, mad)
 
             train_loader = DataLoader(
                 dataset[:num_train],
@@ -178,7 +217,7 @@ def get_loaders(
     else:
         raise ValueError(f"Dataset {args.dataset} not recognized.")
 
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, meann, mad
 
 
 def set_seed(seed: int = 42) -> None:

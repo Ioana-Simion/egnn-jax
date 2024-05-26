@@ -11,7 +11,7 @@ from functools import partial
 from qm9.utils import GraphTransform, TransformDLBatches
 from flax.training import checkpoints
 from typing import Callable
-from utils.utils import get_model, get_loaders, set_seed
+from utils.utils import get_model, get_loaders, set_seed, get_property_index, compute_mean_mad
 import gc
 
 
@@ -42,22 +42,6 @@ def update(params, x, edge_attr, edge_index, pos, target, opt_state, loss_fn, op
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
-def get_property_index(property_name):
-    property_dict = {
-        'alpha': 0,
-        'gap': 1,
-        'homo': 2,
-        'lumo': 3,
-        'mu': 4,
-        'Cv': 5,
-        'G': 6,
-        'H': 7,
-        'r2': 8,
-        'U': 9,
-        'U0': 10,
-        'zpve': 11
-    }
-    return property_dict[property_name]
 
 def create_graph(h, x, edges, edge_attr):
     n_node = jnp.array([h.shape[0]])
@@ -85,26 +69,12 @@ def create_padding_mask(h, x, edges, edge_attr):
 
     return node_mask
 
-def compute_mean_mad(dataloader, property_idx):
-    values = []
-    for batch in dataloader:
-        values.append(jnp.array(batch.y[:, property_idx].numpy()))
-    values = jnp.concatenate(values)
-    meann = jnp.mean(values)
-    mad = jnp.mean(jnp.abs(values - meann))
-    return meann, mad
-
-def normalize(pred, meann, mad):
-    return (pred - meann) / mad
-
-def denormalize(pred, meann, mad):
-    return mad * pred + meann
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training"])
 def l1_loss(params, h, edge_attr, edge_index, pos, target, model_fn, meann, mad, training=True, task="graph"):
     pred = model_fn(params, h, pos, edge_index, edge_attr)[0]
-    target = normalize(target, meann, mad) if training else target
-    pred = normalize(pred, meann, mad) if training else pred
+    #target = normalize(target, meann, mad) if training else target
+    #pred = normalize(pred, meann, mad) if training else pred
 
     target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
     pred = pred * node_mask[:, None]
@@ -124,12 +94,11 @@ def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph")
     return eval_loss / len(loader)
 
 def train_model(args, model, graph_transform, model_name, checkpoint_path):
-    train_loader, val_loader, test_loader = get_loaders(args)
+    train_loader, val_loader, test_loader, meann, mad = get_loaders(args)
 
     property_idx = get_property_index(args.property)
     graph_transform_fn = graph_transform(property_idx)
 
-    meann, mad = compute_mean_mad(train_loader, property_idx)
     mad = jnp.maximum(mad, 1e-6) #to not divide by zero
     print(f"Mean: {meann}, MAD: {mad}")
 
