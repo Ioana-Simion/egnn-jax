@@ -147,7 +147,7 @@ def get_loaders(
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
             collate_fn_egnn = get_collate_fn_egnn(dataset)
 
-            train_loader = GDataLoader(
+            train_loader = DataLoader(
                 dataset[:num_train],
                 batch_size=args.batch_size,
                 shuffle=True,
@@ -155,14 +155,14 @@ def get_loaders(
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
             )
-            val_loader = GDataLoader(
+            val_loader = DataLoader(
                 dataset[num_train : num_train + num_val],
                 batch_size=args.batch_size,
                 drop_last=True,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
             )
-            test_loader = GDataLoader(
+            test_loader = DataLoader(
                 dataset[num_train + num_val :],
                 batch_size=args.batch_size,
                 drop_last=True,
