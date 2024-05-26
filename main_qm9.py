@@ -35,10 +35,10 @@ def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update"])
-def update(params, x, edge_attr, edge_index, pos, edge_mask, target, node_mask, opt_state, loss_fn, opt_update):
+def update(params, x, edge_attr, edge_index, pos, target, opt_state, loss_fn, opt_update):
     #using jax grad only instead of value and grad
-    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, edge_mask, target, node_mask=node_mask)
-    loss = loss_fn(params, x, edge_attr, edge_index, pos, edge_mask, target, node_mask=node_mask)
+    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, target)
+    loss = loss_fn(params, x, edge_attr, edge_index, pos, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
@@ -101,7 +101,7 @@ def denormalize(pred, meann, mad):
     return mad * pred + meann
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training"])
-def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, edge_mask, target, model_fn, meann, mad, training=True, task="graph"):
+def l1_loss(params, h, edge_attr, edge_index, pos, target, model_fn, meann, mad, training=True, task="graph"):
     pred = model_fn(params, h, pos, edge_index, edge_attr)[0]
     target = normalize(target, meann, mad) if training else target
     pred = normalize(pred, meann, mad) if training else pred
@@ -151,9 +151,9 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform_fn(batch)
-            x, edge_attr, edge_index, pos, node_mask, edge_mask, target = feat
+            x, edge_attr, edge_index, pos = feat
             #node_mask = create_padding_mask(h, x, edges, edge_attr)
-            loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, edge_mask, target=target, node_mask=node_mask, opt_state=opt_state)
+            loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, target=target, opt_state=opt_state)
             train_loss += loss
 
             # Manually trigger garbage collection
