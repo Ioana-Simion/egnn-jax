@@ -380,7 +380,9 @@ class EGNNTransformer(nn.Module):
         node_encoded = node_encoded.reshape(batch_size, heads * hidden_dim)
 
         output = self.output_net(node_encoded)
-        return jnp.reshape(output, (batch_size, 5, 3))
+        output = jnp.reshape(output, (batch_size, 5, 3))
+        output_coords = coords + output
+        return output_coords
 
 
 class NodeEGNNTransformer(nn.Module):

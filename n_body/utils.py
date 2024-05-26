@@ -98,6 +98,8 @@ def NbodyGraphTransform(
 
         dim_target = targets.shape[1]
         targets = jnp.reshape(targets, (batch_size, n_nodes, dim_target))
+
+        pos = jnp.reshape(pos, (batch_size, n_nodes, dim_target))
         return (nodes, edge_attr, pos), targets
 
     if model == 'egnn':
