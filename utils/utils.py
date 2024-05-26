@@ -1,14 +1,13 @@
 # from https://github.com/flooreijkelboom/equivariant-simplicial-mp/blob/main/utils.py
 
 import os
-import copy
 import torch
 import random
 import numpy as np
 import torch.nn as nn
 from typing import Tuple
-from argparse import Namespace
 from qm9.utils import RemoveNumHs
+import copy
 from torch.utils.data import DataLoader
 from n_body import get_nbody_dataloaders
 from torch.nn.utils.rnn import pad_sequence
@@ -95,32 +94,16 @@ def get_loaders(
         import torch_geometric.transforms as T
 
         # Distance transform handles distances between atoms
-        dataset = QM9(
-            root="data/QM9",
-            pre_transform=T.Compose(
-                [T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]
-            ),
-        )
-        num_train = 100000
-        num_val = 10000
+        dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]))
+        num_train = 10000
+        num_val = 1000
+        num_test= 1000
 
         if transformer:
-            train_loader = DataLoader(
-                dataset[:num_train],
-                batch_size=args.batch_size,
-                shuffle=True,
-                collate_fn=collate_fn,
-            )
-            val_loader = DataLoader(
-                dataset[num_train : num_train + num_val],
-                batch_size=args.batch_size,
-                collate_fn=collate_fn,
-            )
-            test_loader = DataLoader(
-                dataset[num_train + num_val :],
-                batch_size=args.batch_size,
-                collate_fn=collate_fn,
-            )
+            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
+            test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn)
+
         else:
             train_loader = GDataLoader(
                 dataset[:num_train],
