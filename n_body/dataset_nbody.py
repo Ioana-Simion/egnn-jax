@@ -29,10 +29,11 @@ class NBodyDataset:
         self.data, self.edges = self.load()
 
     def load(self):
-        loc = np.load("/n_body/dataset/data/loc_" + self.sufix + ".npy")
-        vel = np.load("/n_body/dataset/data/vel_" + self.sufix + ".npy")
-        edges = np.load("/n_body/dataset/data/edges_" + self.sufix + ".npy")
-        charges = np.load("/n_body/dataset/data/charges_" + self.sufix + ".npy")
+        base_path = "/content/egnn-transformer/n_body/dataset/data/"
+        loc = np.load(base_path + "loc_" + self.sufix + ".npy")
+        vel = np.load(base_path + "vel_" + self.sufix + ".npy")
+        edges = np.load(base_path + "edges_" + self.sufix + ".npy")
+        charges = np.load(base_path + "charges_" + self.sufix + ".npy")
 
         loc, vel, edge_attr, edges, charges = self.preprocess(loc, vel, edges, charges)
         return (loc, vel, edge_attr, charges), edges
