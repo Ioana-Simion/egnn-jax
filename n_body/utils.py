@@ -78,20 +78,17 @@ def NbodyGraphTransform(
         edge_indices = full_edge_indices[:, : n_nodes * (n_nodes - 1) * cur_batch]
         rows, cols = edge_indices[0], edge_indices[1]
 
-        # nodes = jnp.ones((pos.shape[0], 1))  # all input nodes are set to 1
-        # loc_dist = jnp.sum((pos[rows] - pos[cols]) ** 2, axis=-1)[:, None]
         vel_attr = get_velocity_attr(pos, vel, rows, cols)
-        # edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], 1)
 
         #magnitudes = jnp.sqrt(jnp.sum(vel ** 2, axis=1))
         #nodes = jnp.expand_dims(magnitudes, axis=1)
         #nodes = jnp.concatenate((nodes, charges), axis=1)
+        nodes = charges
 
         loc_dist = jnp.expand_dims(jnp.sum((pos[rows] - pos[cols]) ** 2, 1), axis=1)
         edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], axis=1)
 
         dim_target = targets.shape[1]
-        nodes = jnp.ones((batch_size, n_nodes, dim_target))
 
         features_node = nodes.shape[1]
         nodes = jnp.reshape(nodes, (batch_size, n_nodes, features_node))
