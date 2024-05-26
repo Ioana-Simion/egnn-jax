@@ -47,6 +47,7 @@ def TransformDLBatches(property_idx):
     targets: Selected target property (dataset.y[:, property_idx])
     """
     def _to_jax(data):
+        
         data = (jnp.array(x.numpy()) for x in data)
         nodes, edge_attr, edge_index, pos, targets = data
     
