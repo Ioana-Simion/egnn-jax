@@ -13,6 +13,8 @@ from n_body import get_nbody_dataloaders
 from torch.nn.utils.rnn import pad_sequence
 from torch_geometric.loader import DataLoader as GDataLoader
 import torch.nn.functional as F
+from argparse import Namespace
+
 
 class NodeDistance:
     def __init__(self, normalize=False) -> None:
