@@ -80,13 +80,12 @@ def NbodyGraphTransform(
 
         vel_attr = get_velocity_attr(pos, vel, rows, cols)
 
-        #magnitudes = jnp.sqrt(jnp.sum(vel ** 2, axis=1))
-        #nodes = jnp.expand_dims(magnitudes, axis=1)
-        #nodes = jnp.concatenate((nodes, charges), axis=1)
-        nodes = charges
+        magnitudes = jnp.sqrt(jnp.sum(vel ** 2, axis=1))
+        nodes = jnp.expand_dims(magnitudes, axis=1)
+        nodes = jnp.concatenate((nodes, charges), axis=1)
 
         loc_dist = jnp.expand_dims(jnp.sum((pos[rows] - pos[cols]) ** 2, 1), axis=1)
-        edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], axis=1)
+        edge_attr = jnp.concatenate([vel_attr], axis=1)#edge_attribute, loc_dist,
 
         dim_target = targets.shape[1]
 
