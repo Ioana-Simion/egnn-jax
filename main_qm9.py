@@ -11,7 +11,7 @@ from functools import partial
 from qm9.utils import GraphTransform, TransformDLBatches
 from flax.training import checkpoints
 from typing import Callable
-from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, compute_mean_mad
+from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index
 import gc
 
 
@@ -94,7 +94,7 @@ def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph")
     return eval_loss / len(loader)
 
 def train_model(args, model, graph_transform, model_name, checkpoint_path):
-    train_loader, val_loader, test_loader, meann, mad = get_loaders(args)
+    train_loader, val_loader, test_loader, meann, mad = get_loaders_and_statistics(args)
 
     property_idx = get_property_index(args.property)
     graph_transform_fn = graph_transform(property_idx)
