@@ -21,10 +21,10 @@ class E_GCL(nn.Module):
     residual: bool
 
     def edge_model(self, edge_index, h, coord, edge_attr):
-
+        #edge_attr of shape bs * max_num_edges, dim
         row, col = edge_index
-        source, target = h[row], h[col]
-        radial = self.coord2radial(edge_index, coord)
+        source, target = h[row], h[col] # bs*max_num_edges, dim | bs*max_num_edges, dim
+        radial = self.coord2radial(edge_index, coord) # bs*max_num_edges, 1
 
         edge_mlp = nn.Sequential(
             [
@@ -37,7 +37,7 @@ class E_GCL(nn.Module):
 
         out = jnp.concatenate([source, target, radial, edge_attr], axis=1)
 
-        return edge_mlp(out)
+        return edge_mlp(out) # bs*max_num_edges, hidden_nf
 
     def node_model(self, edge_index, edge_attr, x):
         row, col = edge_index
@@ -63,10 +63,10 @@ class E_GCL(nn.Module):
             ]
         )
 
-        coord_out = coord_mlp(edge_feat)
-        trans = (coord[row] - coord[col]) * coord_out
+        coord_out = coord_mlp(edge_feat) # bs*max_num_edges, 1
+        trans = (coord[row] - coord[col]) * coord_out # bs*max_num_edges, 3
 
-        agg = unsorted_segment_mean(trans, row, num_segments=coord.shape[0])
+        agg = unsorted_segment_mean(trans, row, num_segments=coord.shape[0]) # bs*max_num_nodes, 3; nodes, not edges!!
 
         coord = coord + agg
         return coord
