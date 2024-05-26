@@ -17,6 +17,7 @@ def get_velocity_attr(loc, vel, rows, cols):
 def NbodyGraphTransform(
     n_nodes: int,
     batch_size: int,
+    model: str = 'egnn'
 ) -> Callable:
     """
     Build a function that converts torch DataBatch into jraph.GraphsTuple.
@@ -34,10 +35,10 @@ def NbodyGraphTransform(
         ]
     ).T
 
-    def _to_jraph(
+    def _to_egnn(
         data: List,
     ):
-        pos, vel, edge_attribute, _, targets = data
+        pos, vel, edge_attribute, charges, targets = data
 
         pos = jnp.array(pos)
         vel = jnp.array(vel)
@@ -52,7 +53,6 @@ def NbodyGraphTransform(
         # nodes = jnp.ones((pos.shape[0], 1))  # all input nodes are set to 1
         # loc_dist = jnp.sum((pos[rows] - pos[cols]) ** 2, axis=-1)[:, None]
         vel_attr = get_velocity_attr(pos, vel, rows, cols)
-        # # TODO velocity is not mandatory make optional
         # edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], 1)
 
         magnitudes = jnp.sqrt(jnp.sum(vel ** 2, axis=1))
@@ -60,7 +60,47 @@ def NbodyGraphTransform(
 
         loc_dist = jnp.expand_dims(jnp.sum((pos[rows] - pos[cols]) ** 2, 1), axis=1)
         edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], axis=1)
-        # add velocities here to return
+
         return (nodes, pos, edge_indices, vel, edge_attr), targets
 
-    return _to_jraph
+    def _to_transformer(
+        data: List,
+    ):
+        pos, vel, edge_attribute, charges, targets = data
+
+        pos = jnp.array(pos)
+        vel = jnp.array(vel)
+        edge_attribute = jnp.array(edge_attribute)
+        targets = jnp.array(targets)
+
+        cur_batch = int(pos.shape[0] / n_nodes)
+
+        edge_indices = full_edge_indices[:, : n_nodes * (n_nodes - 1) * cur_batch]
+        rows, cols = edge_indices[0], edge_indices[1]
+
+        # nodes = jnp.ones((pos.shape[0], 1))  # all input nodes are set to 1
+        # loc_dist = jnp.sum((pos[rows] - pos[cols]) ** 2, axis=-1)[:, None]
+        vel_attr = get_velocity_attr(pos, vel, rows, cols)
+        # edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], 1)
+
+        magnitudes = jnp.sqrt(jnp.sum(vel ** 2, axis=1))
+        nodes = jnp.expand_dims(magnitudes, axis=1)
+        nodes = jnp.concatenate((nodes, charges), axis=1)
+
+        loc_dist = jnp.expand_dims(jnp.sum((pos[rows] - pos[cols]) ** 2, 1), axis=1)
+        edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], axis=1)
+
+        features_node = nodes.shape[1]
+        nodes = jnp.reshape(nodes, (batch_size, n_nodes, features_node))
+
+        features_edges = edge_attr.shape[1]
+        edge_attr = jnp.reshape(edge_attr, (batch_size, n_nodes * (n_nodes - 1), features_edges))
+
+        dim_target = targets.shape[1]
+        targets = jnp.reshape(targets, (batch_size, n_nodes, dim_target))
+        return (nodes, edge_attr, pos), targets
+
+    if model == 'egnn':
+        return _to_egnn
+    else:
+        return _to_transformer

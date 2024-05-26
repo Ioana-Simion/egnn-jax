@@ -28,7 +28,6 @@ class MultiheadAttention(nn.Module):
         )
 
     def __call__(self, x, mask=None):
-
         batch_size, seq_length, embed_dim = x.shape
         if mask is not None:
             mask = utils.expand_mask(mask)
@@ -289,8 +288,7 @@ class EGNNTransformer(nn.Module):
     model_dim: int = 128
     num_heads: int = 8
     dropout_prob: float = 0.0
-    edge_input_dim: int = 5
-    node_input_dim: int = 19
+    num_output: int = 1
 
     input_dropout_prob: float = 0.0
 
@@ -341,11 +339,13 @@ class EGNNTransformer(nn.Module):
         )
 
         # Output classifier
-        self.output_net = nn.Dense(1)
+        # TODO replace 5 with n_nodes, and 3 with outut dimension
+        self.output_net = nn.Dense(5 * 3)
 
-    def __call__(self, edge_inputs, node_inputs, cross_mask=None, train=True):
-        
-        batch_size, num_nodes, _ = node_inputs.shape
+
+    def __call__(self, node_inputs, edge_inputs, coords, cross_mask=None, train=True):#x, edges, vel,
+
+        batch_size, _, _ = node_inputs.shape
 
         # Input layer
         edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
@@ -376,10 +376,11 @@ class EGNNTransformer(nn.Module):
             node_encoded, mask=None, train=train
         )
 
-        if self.predict_pos:
-            return self.output_net(node_encoded)
-        # Output classifier
-        return self.output_net(node_encoded[:, 0])
+        batch_size, heads, hidden_dim = node_encoded.shape
+        node_encoded = node_encoded.reshape(batch_size, heads * hidden_dim)
+
+        output = self.output_net(node_encoded)
+        return jnp.reshape(output, (batch_size, 5, 3))
 
 
 class NodeEGNNTransformer(nn.Module):

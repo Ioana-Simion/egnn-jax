@@ -81,7 +81,7 @@ class NBodyDataset:
         if self.dataset_name == "nbody":
             frame_0, frame_T = 6, 8
         elif self.dataset_name == "nbody_small":
-            frame_0, frame_T = 30, 40
+            frame_0, frame_T = 6, 8
         elif self.dataset_name == "nbody_small_out_dist":
             frame_0, frame_T = 20, 30
         else:

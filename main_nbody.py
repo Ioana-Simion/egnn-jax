@@ -1,5 +1,6 @@
 # jax grad process from https://github.com/gerkone/egnn-jax/blob/main/validate.py
 import itertools
+import math
 import os
 import jax
 import jax.numpy as jnp
@@ -19,8 +20,8 @@ from typing import Dict, Callable, Tuple, Iterable
 from utils.utils import get_model, get_loaders, set_seed
 from flax.training import train_state
 
-# Seeding
-jax_seed = jax.random.PRNGKey(42)
+
+
 
 
 def _get_config_file(model_path, model_name):
@@ -127,12 +128,14 @@ def evaluate(
     params,
     loss_fn: Callable,
     graph_transform: Callable,
+    rng,
 ) -> float:
     eval_loss = 0.0
     num_batches = 0
     for data in loader:
+        _, dropout_rng = jax.random.split(rng)
         feat, target = graph_transform(data)
-        loss = jax.lax.stop_gradient(loss_fn(params, feat, target))
+        loss = jax.lax.stop_gradient(loss_fn(params, feat, target, dropout_rng))
         eval_loss += jax.block_until_ready(loss)
         num_batches += 1
     return eval_loss / num_batches
@@ -188,7 +191,11 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
         learning_rate=args.lr, weight_decay=args.weight_decay
     )
 
-    params = model.init(jax_seed, *init_feat)
+    params = model.init(params_key, *init_feat)
+
+    num_params = sum(math.prod(param.shape) for param in jax.tree_util.tree_leaves(params['params']))
+
+    print(f'Parameters: {num_params}')
 
     loss_fn = partial(mse, model_fn=model.apply)
     update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
@@ -305,7 +312,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=100,
+        default=50,
         help="Batch size (number of graphs).",
     )
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
@@ -362,20 +369,50 @@ if __name__ == "__main__":
         action="store_true",
         help="Use double precision",
     )
-    parser.add_argument("--model_name", type=str, default="egnn_vel", help="model")
+    parser.add_argument(
+        "--nbody_name",
+        type=str,
+        default="nbody_small",
+        help="Which n_body dataset to use",
+        choices=["nbody", "nbody_small"],
+    )
+    parser.add_argument("--model_name", type=str, default="egnn", help="model")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
+    # Model parameters
+    parser.add_argument(
+        "--num_edge_encoders", type=int, default=3, help="Number of edge encoder blocks"
+    )
+    parser.add_argument(
+        "--num_node_encoders", type=int, default=3, help="Number of node encoder blocks"
+    )
+    parser.add_argument(
+        "--num_combined_encoder_blocks",
+        type=int,
+        default=3,
+        help="Number of combined encoder blocks",
+    )
+    parser.add_argument("--dim", type=int, default=128, help="Model dimension")
+    parser.add_argument("--heads", type=int, default=8, help="Number of heads")
+    parser.add_argument(
+        "--dropout", type=float, default=0.1, help="Dropout probability"
+    )
 
     parsed_args = parser.parse_args()
     parsed_args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     set_seed(parsed_args.seed)
+    root_key = jax.random.key(seed=0)
+    main_key, params_key, dropout_key = jax.random.split(key=root_key, num=3)
+    parsed_args.dropout_key = dropout_key
+    parsed_args.params_key = params_key
+
 
     parsed_args.target = "pos"
     parsed_args.task = "node"
     parsed_args.radius = 1000.0
     parsed_args.node_type = "continuous"
 
-    graph_transform = NbodyGraphTransform(n_nodes=5, batch_size=parsed_args.batch_size)
+    graph_transform = NbodyGraphTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
 
     train_model(parsed_args, graph_transform, "test", "assets")

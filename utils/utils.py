@@ -53,8 +53,10 @@ def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
     if args.dataset == "qm9":
         num_out = 1
+        predict_pos = False
     elif args.dataset == "charged":
         num_out = 3
+        predict_pos = True
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -81,12 +83,11 @@ def get_model(args: Namespace) -> nn.Module:
             num_edge_encoder_blocks=args.num_edge_encoders,
             num_node_encoder_blocks=args.num_node_encoders,
             num_combined_encoder_blocks= args.num_combined_encoder_blocks,
-
+            num_output=num_out,
             model_dim=args.dim,
             num_heads=args.heads,
             dropout_prob=args.dropout,
-            edge_input_dim= args.edge_input_dim,
-            node_input_dim= args.node_input_dim,
+            predict_pos=predict_pos
         )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")
