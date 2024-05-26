@@ -56,7 +56,7 @@ def get_collate_fn_egnn(dataset):
     print("max num nodes", max_num_nodes)
     print("max num edges", max_num_edges)
 
-    def collate_fn_egnn(data_list):
+    def _collate_fn_egnn(data_list):
         x = [d.x for d in data_list]
         x[0] = nn.ConstantPad1d((0, max_num_nodes - x[0].size(0)), 0.0)(x[0])
         x = pad_sequence(x, batch_first=True, padding_value=0.0).reshape(x.shape[0] * x.shape[1], -1)
@@ -84,7 +84,7 @@ def get_collate_fn_egnn(dataset):
         #node_mask = torch.where(x.sum(dim=-1) == 0, 1, 0)
         #edge_mask = torch.where(edge_attr.sum(dim=-1) == 0, 1, 0)
         return x, edge_attr, edge_index, pos, y
-    return collate_fn_egnn
+    return _collate_fn_egnn
 
 def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
@@ -138,14 +138,15 @@ def get_loaders(
         if transformer:
             # Distance transform handles distances between atoms
             dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]))
-            print(max([len(x.x) for x in qm9]))
-            print(max([x.edge_index.shape[-1] for x in qm9]))
+            
             train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
             val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
             test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn)
 
         else:
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
+            collate_fn_egnn = get_collate_fn_egnn(dataset)
+
             train_loader = GDataLoader(
                 dataset[:num_train],
                 batch_size=args.batch_size,
