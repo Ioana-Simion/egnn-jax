@@ -1,12 +1,12 @@
 # from https://github.com/flooreijkelboom/equivariant-simplicial-mp/blob/main/utils.py
 
 import os
+from argparse import Namespace
 import torch
 import random
 import numpy as np
 import torch.nn as nn
 from typing import Tuple
-from argparse import Namespace
 from torch.utils.data import DataLoader
 from torch_geometric.loader import DataLoader as GDataLoader
 from n_body import get_nbody_dataloaders
@@ -90,13 +90,14 @@ def get_loaders(args: Namespace, transformer=False) -> Tuple[DataLoader, DataLoa
         import torch_geometric.transforms as T
         # Distance transform handles distances between atoms
         dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]))
-        num_train = 100000
-        num_val = 10000
+        num_train = 10000
+        num_val = 1000
+        num_test= 1000
 
         if transformer:
             train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
             val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
-            test_loader = DataLoader(dataset[num_train+num_val:], batch_size=args.batch_size, collate_fn=collate_fn)
+            test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn)
         else:
             train_loader = GDataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, drop_last=True, pin_memory=True)
             val_loader = GDataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, drop_last=True, pin_memory=True)
