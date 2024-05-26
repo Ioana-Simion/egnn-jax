@@ -91,7 +91,7 @@ def NbodyGraphTransform(
         edge_attr = jnp.concatenate([edge_attribute, loc_dist, vel_attr], axis=1)
 
         dim_target = targets.shape[1]
-        nodes = jnp.ones((batch_size, n_nodes, dim_target), 1)
+        nodes = jnp.ones((batch_size, n_nodes, dim_target))
 
         features_node = nodes.shape[1]
         nodes = jnp.reshape(nodes, (batch_size, n_nodes, features_node))
