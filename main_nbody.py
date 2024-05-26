@@ -129,11 +129,13 @@ def evaluate(
     graph_transform: Callable,
 ) -> float:
     eval_loss = 0.0
+    num_batches = 0
     for data in loader:
         feat, target = graph_transform(data)
         loss = jax.lax.stop_gradient(loss_fn(params, feat, target))
         eval_loss += jax.block_until_ready(loss)
-    return eval_loss / len(loader)
+        num_batches += 1
+    return eval_loss / num_batches
 
 
 # @jax.jit
@@ -217,19 +219,22 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     train_scores = []
     val_scores = []
     test_loss = 0
+    val_index = -1
 
     for epoch in tqdm(range(args.epochs)):
         ############
         # Training #
         ############
         train_loss, val_loss = 0, 0
-        for batch in tqdm(train_loader.dataset, desc=f"Epoch {epoch+1}", leave=False):
+        num_batches = 0
+        for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform(batch)
             loss, params, opt_state = update_fn(
                 params=params, feat=feat, target=target, opt_state=opt_state
             )
             train_loss += loss
-        train_loss /= len(train_loader.dataset)
+            num_batches += 1
+        train_loss /= num_batches
         train_scores.append(train_loss)
 
         ##############
@@ -239,63 +244,52 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
             val_loss = eval_fn(val_loader, params)
 
             val_scores.append(val_loss)
-            print(
-                f"[Epoch {epoch + 1:2d}] Training accuracy: {train_loss:05.2%}, Validation accuracy: {val_loss:4.2%}"
-            )
+            print(f"[Epoch {epoch + 1:2d}] Training accuracy: {train_loss:4.4%}, Validation accuracy: {val_loss:4.4%}")
 
-            if len(val_scores) == 1 or val_loss > val_scores[best_val_epoch]:
+            if len(val_scores) == 1 or val_loss < val_scores[val_index]:
                 print("\t   (New best performance, saving model...)")
-                save_model(model, params, checkpoint_path, model_name)
+                #save_model(model, params, checkpoint_path, model_name)
                 best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params)
+                val_index += 1
 
-    print(
-        f"Final Performance [Epoch {epoch + 1:2d}] Training accuracy: {train_scores[best_val_epoch]:05.2%}, "
-        f"Validation accuracy: {val_scores[best_val_epoch]:4.2%}, Test accuracy: {test_loss:2.2%} "
-    )
-    results = {
-        "test_mae": test_loss,
-        "val_scores": val_scores[best_val_epoch],
-        "train_scores": train_scores[best_val_epoch],
-    }
-    with open(_get_result_file(checkpoint_path, model_name), "w") as f:
-        json.dump(results, f)
+
+
+    print(f"Final Performance [Epoch {best_val_epoch + 1:2d}] Training accuracy: {train_scores[best_val_epoch]:05.4%}, "
+          f"Validation accuracy: {val_scores[val_index]:4.4%}, Test accuracy: {test_loss:2.4%} ")
+    results = {"test_mae": test_loss, "val_scores": val_scores[val_index],
+               "train_scores": train_scores[best_val_epoch]}
+    #with open(_get_result_file(checkpoint_path, model_name), "w") as f:
+    #    json.dump(results, f)
 
     # Plot a curve of the validation accuracy
-    sns.set()
-    plt.plot(
-        [i for i in range(1, len(results["train_scores"]) + 1)],
-        results["train_scores"],
-        label="Train",
-    )
-    plt.plot(
-        [i for i in range(1, len(results["val_scores"]) + 1)],
-        results["val_scores"],
-        label="Val",
-    )
-    plt.xlabel("Epochs")
-    plt.ylabel("Validation accuracy")
-    plt.ylim(min(results["val_scores"]), max(results["train_scores"]) * 1.01)
-    plt.title(f"Validation performance of {model_name}")
-    plt.legend()
-    plt.show()
-    plt.close()
+    # sns.set()
+    # plt.plot([i for i in range(1, len(results["train_scores"]) + 1)], results["train_scores"], label="Train")
+    # plt.plot([i for i in range(1, len(results["val_scores"]) + 1)], results["val_scores"], label="Val")
+    # plt.xlabel("Epochs")
+    # plt.ylabel("Validation accuracy")
+    # plt.ylim(min(results["val_scores"]), max(results["train_scores"]) * 1.01)
+    # plt.title(f"Validation performance of {model_name}")
+    # plt.legend()
+    # plt.show()
+    # plt.close()
 
-    print((f" Test accuracy: {results['test_acc']:4.2%} ").center(50, "=") + "\n")
+    #print((f" Test accuracy: {results['test_acc']:4.4%} ").center(50, "=") + "\n")
+  
     return
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Run parameters
-    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
+    parser.add_argument("--epochs", type=int, default=23, help="Number of epochs")
     parser.add_argument(
         "--batch_size",
         type=int,
         default=100,
         help="Batch size (number of graphs).",
     )
-    parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument(
         "--lr-scheduling",
         action="store_true",
@@ -304,7 +298,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_decay",
         type=float,
-        default=1e-8,
+        default=1e-12,
         help="Weight decay",
     )
     parser.add_argument(
@@ -327,13 +321,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_hidden",
         type=int,
-        default=128,
+        default=64,
         help="Number of values in the hidden layers",
     )
     parser.add_argument(
         "--num_layers",
         type=int,
-        default=3,
+        default=4,
         help="Number of message passing layers",
     )
     parser.add_argument(
