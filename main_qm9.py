@@ -11,7 +11,7 @@ from functools import partial
 from qm9.utils import GraphTransform, TransformDLBatches
 from flax.training import checkpoints
 from typing import Callable
-from utils.utils import get_model, get_loaders, set_seed, get_property_index, compute_mean_mad
+from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, compute_mean_mad
 import gc
 
 
