@@ -135,6 +135,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
             loss_item = float(jax.device_get(loss))
             train_loss += loss_item
+            writer.add_scalar('Loss/train', loss_item)
 
             # Manually trigger garbage collection
             gc.collect()
@@ -142,7 +143,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
 
         train_loss /= len(train_loader)
         train_scores.append(train_loss)
-        writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('AvgLoss/train', train_loss, epoch)
 
         if epoch % args.val_freq == 0:
             val_loss = eval_fn(val_loader, params)
@@ -264,7 +265,7 @@ if __name__ == "__main__":
 
     graph_transform = TransformDLBatches
 
-    writer = SummaryWriter(log_dir="runs")
+    writer = SummaryWriter(log_dir="runs", flush_secs=10)
 
     model = get_model(parsed_args)
     train_model(parsed_args, model, graph_transform, "test", "assets")
