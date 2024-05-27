@@ -35,9 +35,9 @@ def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update"])
-def update(params, x, edge_attr, edge_index, pos, target, opt_state, loss_fn, opt_update):
+def update(params, x, edge_attr, edge_index, pos, node_mask, target, opt_state, loss_fn, opt_update):
     #using jax grad only instead of value and grad
-    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, target)
+    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, target)
     loss = loss_fn(params, x, edge_attr, edge_index, pos, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
@@ -122,7 +122,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             feat, target = graph_transform_fn(batch)
             x, pos, edge_index, edge_attr, node_mask = feat
             #node_mask = create_padding_mask(h, x, edges, edge_attr)
-            loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, target=target, opt_state=opt_state)
+            loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, target=target, opt_state=opt_state)
             train_loss += loss
 
             # Manually trigger garbage collection
