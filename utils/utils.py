@@ -174,9 +174,9 @@ def get_loaders_and_statistics(
         from torch_geometric.datasets import QM9
         import torch_geometric.transforms as T
 
-        num_train = 10000
-        num_val = 1000
-        num_test= 1000
+        num_train = 100000
+        num_val = (len(dataset) - num_train) // 2
+        num_test = len(dataset) - num_train - num_val
 
         if transformer:
             # Distance transform handles distances between atoms

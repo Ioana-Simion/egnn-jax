@@ -74,7 +74,8 @@ def create_padding_mask(h, x, edges, edge_attr):
 @partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
 def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, 
             target, model_fn, meann, mad, training=True, task="graph"):
-    pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
+    if not training:
+        pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
     #target = normalize(target, meann, mad) if training else target
     #pred = normalize(pred, meann, mad) if training else pred
 
