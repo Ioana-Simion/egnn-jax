@@ -8,7 +8,7 @@ from tqdm import tqdm
 from flax.training import checkpoints
 from functools import partial
 from qm9.utils import GraphTransform
-from utils.utils import get_model, get_loaders, set_seed, collate_fn, NodeDistance, RemoveNumHs
+from utils.utils import get_model, set_seed, NodeDistance, RemoveNumHs, get_loaders_and_statistics
 import gc
 import json
 from torch_geometric.datasets import QM9
@@ -72,8 +72,6 @@ def evaluate(loader, params, rng, model_fn):
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
         edge_attr, node_attr, _, _, _, target = data
-        edge_attr = normalize_data(jnp.array(edge_attr))
-        node_attr = normalize_data(jnp.array(node_attr))
         target = jnp.array(target)
         
         # Handle nan and inf values
@@ -87,11 +85,18 @@ def evaluate(loader, params, rng, model_fn):
     return eval_loss / num_batches
 
 def train_model(args, model, model_name, checkpoint_path):
-    train_loader, val_loader, test_loader = get_loaders(args, transformer=True)
+    (
+        train_loader, 
+        val_loader, 
+        test_loader, 
+        meann, 
+        mad, 
+        max_num_nodes, 
+        max_num_edges
+    ) = get_loaders_and_statistics(args, transformer=True)
+
 
     init_edge_attr, init_node_attr, _, _, _, _ = next(iter(train_loader))
-    init_edge_attr = normalize_data(jnp.array(init_edge_attr))
-    init_node_attr = normalize_data(jnp.array(init_node_attr))
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     rng, init_rng = jax.random.split(jax_seed)
     params = model.init(init_rng, edge_inputs=init_edge_attr, node_inputs=init_node_attr)['params']
@@ -105,8 +110,6 @@ def train_model(args, model, model_name, checkpoint_path):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             edge_attr, node_attr, _, _, _, target = batch
-            edge_attr = normalize_data(jnp.array(edge_attr))
-            node_attr = normalize_data(jnp.array(node_attr))
             target = jnp.array(target)
 
             # Handle nan and inf values

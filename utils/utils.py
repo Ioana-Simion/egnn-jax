@@ -14,6 +14,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch_geometric.loader import DataLoader as GDataLoader
 import torch.nn.functional as F
 from argparse import Namespace
+from models.utils import mask_from_edges
 
 
 class NodeDistance:
@@ -48,6 +49,33 @@ def collate_fn(data_list):
     pos = [d.pos for d in data_list]
 
     return x, edge_attr, pos, mask, edge_mask, y
+
+def get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges):
+
+    def _collate_fn(data_list):
+        x = [d.x for d in data_list]
+        x[0] = torch.cat([x[0], torch.zeros(max_num_nodes - x[0].size(0), x[0].size(1))], dim=0)
+        x = pad_sequence(x, batch_first=True, padding_value=0.0)
+
+        # Normalize target
+        y = torch.stack([normalize(d.y, meann, mad) for d in data_list]).squeeze(1)
+
+        edge_attn_mask = mask_from_edges([d.edge_index for d in data_list], max_num_nodes, max_num_edges)
+
+        edge_attr = [d.edge_attr for d in data_list]
+        edge_attr[0] = torch.cat([edge_attr[0], torch.zeros(max_num_edges - edge_attr[0].size(0), edge_attr[0].size(1))], dim=0)
+        edge_attr = pad_sequence(edge_attr, batch_first=True, padding_value=0.0)
+
+        
+        pos = [d.pos for d in data_list]
+        pos[0] = torch.cat([pos[0], torch.zeros(max_num_nodes - pos[0].size(0), pos[0].size(1))], dim=0)
+        pos = pad_sequence(pos, batch_first=True, padding_value=0.0)
+        
+        #node_mask = torch.where(x.sum(dim=-1) == 0, 1, 0)
+        #edge_mask = torch.where(edge_attr.sum(dim=-1) == 0, 1, 0)
+        return x, edge_attr, edge_attn_mask, pos, y
+    return _collate_fn
+
 
 def get_collate_fn_egnn(dataset, meann, mad, max_num_nodes, max_num_edges):
 
@@ -228,6 +256,7 @@ def get_loaders_and_statistics(
             )
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
+        return train_loader, val_loader, test_loader
     else:
         raise ValueError(f"Dataset {args.dataset} not recognized.")
 

@@ -18,6 +18,13 @@ def scaled_dot_product(q, k, v, mask=None):
 
     return values, attention
 
+def mask_from_edges(edge_index, num_nodes, num_edges):
+    mask = jnp.zeros((edge_index.shape[0], num_nodes, num_edges))
+    row, col = edge_index.transpose(1, 0)
+    # (0,2), (1, 1)
+    mask = mask.at[row, jnp.tile(jnp.arange(num_edges).astype(jnp.int32), (edge_index.shape[0], 1))].set(1)
+    mask = mask.at[col, jnp.tile(jnp.arange(num_edges).astype(jnp.int32), (edge_index.shape[0], 1))].set(1)
+    return mask
 
 # Helper function to support different mask shapes.
 # Output shape supports (batch_size, number of heads, seq length, seq length)
