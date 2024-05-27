@@ -118,13 +118,12 @@ class EGNN_QM9(nn.Module):
     out_node_nf: int
     act_fn: callable = nn.silu  # default activation function
     n_layers: int = 4
-    residual: bool = True
 
     @nn.compact
     def __call__(self, h, x, edges, edge_attr, node_mask, n_nodes):
         h = nn.Dense(self.hidden_nf)(h)
         for i in range(self.n_layers):
-            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
+            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn)(
                 h, edges, x, edge_attr=edge_attr)
         h = h * node_mask[:, None]
         h = h.reshape(-1, n_nodes, self.hidden_nf)
