@@ -35,7 +35,7 @@ def load_model(model_path, model_name):
 def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
-@partial(jax.jit, static_argnames=["loss_fn", "opt_update"])
+@partial(jax.jit, static_argnames=["loss_fn", "opt_update", "max_num_nodes"])
 def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target, opt_state, loss_fn, opt_update):
     #using jax grad only instead of value and grad
     grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target)
@@ -71,7 +71,7 @@ def create_padding_mask(h, x, edges, edge_attr):
     return node_mask
 
 
-@partial(jax.jit, static_argnames=["model_fn", "task", "training"])
+@partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
 def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, 
             target, model_fn, meann, mad, training=True, task="graph"):
     pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
