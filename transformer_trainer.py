@@ -35,18 +35,18 @@ def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
 @partial(jax.jit, static_argnames=["opt_update", "model_fn"])
-def update(params, edge_attr, node_attr, target, opt_state, rng, model_fn, opt_update):
+def update(params, edge_attr, node_attr, cross_mask, target, opt_state, rng, model_fn, opt_update):
     rng, dropout_rng = jax.random.split(rng)
-    grads = jax.grad(mse_loss)(params, edge_attr, node_attr, target, dropout_rng, model_fn)
-    loss = mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn)
+    grads = jax.grad(mse_loss)(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn)
+    loss = mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state, rng
 
 #use jit again? removed for debugging
-def mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn):
+def mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn):
     variables = {'params': params}
     rngs = {'dropout': dropout_rng}
-    pred = model_fn(variables, edge_attr, node_attr, train=True, rngs=rngs)
+    pred = model_fn(variables, edge_attr, node_attr, cross_mask=cross_mask, train=True, rngs=rngs)
 
     return jnp.mean((pred - target) ** 2)
 
@@ -117,7 +117,7 @@ def train_model(args, model, model_name, checkpoint_path):
             node_attr = handle_nan(node_attr)
             target = handle_nan(target)
             
-            loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
+            loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, cross_mask=edge_attn_mask, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
             train_loss += loss
 
             # Manually trigger garbage collection
