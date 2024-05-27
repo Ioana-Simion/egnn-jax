@@ -194,7 +194,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">Tensor Field</th>
       <th align="left">Set Transformer</th>
       <th align="left">SE(3)-Transformer</th>
-      <th align="left">unquivariant Transformer</th>
+      <th align="left">invariant Transformer</th>
       <th align="left">equivariant Node only Transformer</th>
       <th align="left">DEMETAr</th>
   </tr>
