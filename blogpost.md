@@ -114,7 +114,7 @@ where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternat
 
 Similarly to how the equivariant EGNN in \[5\] is made equivariant, we also introduce as a lest step a calculation where we preidct $\delta x$. We implemented two versions: One that calculates the position update and one version that takes velocity into account. 
 
-Equivariance Proof\\
+Equivariance Proof\
 
 $$\begin{align} 
 Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????)\\
