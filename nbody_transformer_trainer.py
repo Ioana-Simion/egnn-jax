@@ -240,8 +240,6 @@ if __name__ == "__main__":
 
     set_seed(parsed_args.seed)
     graph_transform = NbodyGraphTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
-    train_loader, val_loader, test_loader = get_loaders(parsed_args, transformer=True)
-    init_feat, a = graph_transform(next(iter(train_loader)))
     model = get_model(parsed_args)
 
     train_model(parsed_args, model, parsed_args.model_name, graph_transform, "assets")
