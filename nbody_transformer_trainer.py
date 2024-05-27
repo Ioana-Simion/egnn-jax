@@ -230,7 +230,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--model_name", type=str, default="invariant_transformer", help="Model name"
+        "--model_name", type=str, default="transformer", help="Model name"
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
