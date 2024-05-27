@@ -83,6 +83,7 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes,
     #target_padded = target_padded * node_mask[:, None]
 
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
+    # TODO no_grad for training = false
     return jnp.mean(jnp.abs(pred - target))
 
 def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad, task="graph"):
@@ -91,7 +92,8 @@ def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad
         feat, target = graph_transform(data)
         h, x, edges, edge_attr, node_mask = feat
         node_mask = create_padding_mask(h, x, edges, edge_attr)
-        loss = loss_fn(params, h, edge_attr, edges, x, target, node_mask=node_mask, max_num_nodes=max_num_nodes, meann=meann, mad=mad, training=False)
+        loss = loss_fn(params, h, edge_attr, edges, x, node_mask, max_num_nodes, target, meann=meann, mad=mad, training=False)
+        #loss = loss_fn(params, h, edge_attr, edges, x, target, node_mask=node_mask, max_num_nodes=max_num_nodes, meann=meann, mad=mad, training=False)
         eval_loss += loss
     return eval_loss / len(loader)
 
