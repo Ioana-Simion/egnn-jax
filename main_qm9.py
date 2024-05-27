@@ -38,7 +38,7 @@ def _get_result_file(model_path, model_name):
 def update(params, x, edge_attr, edge_index, pos, node_mask, target, opt_state, loss_fn, opt_update):
     #using jax grad only instead of value and grad
     grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, target)
-    loss = loss_fn(params, x, edge_attr, edge_index, pos, target)
+    loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
