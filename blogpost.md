@@ -34,15 +34,6 @@ $$\begin{align}
 
 In other words, translating the input set $T_g(x)$ and then applying $\varphi(T_x(x))$ on it yields the same result as first running the function $y = \varphi(x)$ and then applying an equivalent translation to the output $S_g(y)$ such that Equation 1 is fulfilled and $\varphi(x+g) = \varphi(x) + g$ \[5\].
 
-<!-- <table align="center">
-  <tr align="center">
-      <td><img src="figures/aprox.png" width=800></td>
-  </tr>
-  <tr align="left">
-    <td colspan=2><b>Figure 1.</b> The Markov process of diffusing noise and denoising [5].</td>
-  </tr>
-</table> -->
-
 
 ## **<a name="gnns">Equivariant Graph Neural Networks</a>**
 
@@ -128,11 +119,38 @@ For all the aforementioned methods except TorchMD-Net (due to time constraints),
 
 From reproducing the experiments, we obtain the following results:
 
+<table align="center">
+  <tr align="center">
+      <th align="left">Task</th>
+      <th align="left">EGNN</th>
+      <th align="left">TorchMD-Net</th>
+      <th align="left">DEMETAr (Invariant) </th>
+      <th align="left">DEMETAr</th>
+  </tr>
+  <tr align="center">
+    <td align="left"> QM9 (ε<sub>HOMO</sub>) (meV)</td>
+    <td align="left">29</td>
+    <td align="left">20.3</td>
+    <td align="left"></td>
+    <td align="left"></td>
+  </tr>
+  <tr align="center">
+    <td align="left">N-Body (Position)</td>
+    <td align="left">0.0071</td>
+    <td align="left">-</td>
+    <td align="left"></td>
+    <td align="left"></td>
+  </tr>
+  <tr align="left">
+    <td colspan=5><b>Table 1.</b> Reproduction results from \[5, 7\] and comparison with DEMETAr.</td>
+  </tr>
+</table>
 
+Here, we can see that ... .
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
-Meanwhile, when comparing with other implementations, we see below that our method ... . 
+Meanwhile, when comparing with other transformer implementations, we see based on the below results that our method is very comparable or even outperforms many of the top approaches that have been published recently in the past few years for both QM9 and N-body. 
 
 <table align="center">
   <tr align="center">
@@ -144,6 +162,8 @@ Meanwhile, when comparing with other implementations, we see below that our meth
       <th align="left">LieConv(T3)</th>
       <th align="left">TFN</th>
       <th align="left">SE(3)-Transformer</th>
+      <th align="left">TorchMD-Net</th>
+      <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
     <td align="left">ε<sub>HOMO</sub> (meV)</td>
@@ -153,13 +173,14 @@ Meanwhile, when comparing with other implementations, we see below that our meth
     <td align="left">34</td>
     <td align="left">30</td>
     <td align="left">40</td>
-    <td align="left">35.0±.9</td>
+    <td align="left">35.0</td>
+    <td align="left">20.3</td>
+    <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=8><b>Table 2.</b> Comparison of results for QM9.</td>
+    <td colspan=10><b>Table 2.</b> Comparison of results for QM9, taken from \[7, 18\].</td>
   </tr>
 </table>
-
 
 
 <table align="center">
@@ -170,6 +191,7 @@ Meanwhile, when comparing with other implementations, we see below that our meth
       <th align="left">Tensor Field</th>
       <th align="left">Set Transformer</th>
       <th align="left">SE(3)-Transformer</th>
+      <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
     <td align="left">Position</td>
@@ -236,7 +258,7 @@ Meanwhile, when comparing with other implementations, we see below that our meth
     <td align="left">6.3 · 10<sup>-7</sup></td>
   </tr>
   <tr align="left">
-    <td colspan=8><b>Table 3.</b> Comparison of results for the N-body task.</td>
+    <td colspan=8><b>Table 3.</b> Comparison of results for the N-body task, taken from \[18\].</td>
   </tr>
 </table>
 
@@ -244,7 +266,14 @@ Meanwhile, when comparing with other implementations, we see below that our meth
 
 As our method is implemented using JAX, one advantage is that it is provably faster than the standard PyTorch library. This can be seen in the following graph:
 
-...
+<!-- <table align="center">
+  <tr align="center">
+      <td><img src="assets/speed.png" width=800></td>
+  </tr>
+  <tr align="left">
+    <td colspan=2><b>Figure 1.</b> The Markov process of diffusing noise and denoising [5].</td>
+  </tr>
+</table> -->
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from JIT, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
@@ -255,11 +284,11 @@ Based on the above, it can be concluded that our method is comparable to other m
 
 ## **Authors' Contributions**
 
-- Ioana: [fill in your contribution]
-- Stefan: [fill in your contribution]
-- Jonas: [fill in your contribution]
-- Gregory: Code documentation, dependency setup, assisting with comparing implementations and searching for ideas, writing.
-- Thies: [fill in your contribution]
+- Ioana: Code implementation and debugging, running the code for results, creating the figures.
+- Stefan: Code and dataloader implementation and debugging, coming up with the ideas and formulae.
+- Jonas: Code implementation and debugging, proposal writing, comparing implementations and searching for ideas running the code for results.
+- Gregory: Code documentation, dependency setup, assisting with comparing implementations and searching for ideas, blogpost writing.
+- Thies: Equivariance test writing, proposal writing, coordinating the group.
 
 ## Bibliography
 
