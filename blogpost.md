@@ -216,7 +216,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
-    <td align="left"></td>
+    <td align="left"></td>0.109965
     <td align="left"></td> 0.011273
     <td align="left"></td>
   </tr>
