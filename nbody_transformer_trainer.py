@@ -220,10 +220,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_combined_encoder_blocks",
         type=int,
-        default=0,
+        default=1,
         help="Number of combined encoder blocks",
     )
-    parser.add_argument("--dim", type=int, default=128, help="Model dimension")
+    parser.add_argument("--dim", type=int, default=64, help="Model dimension")
     parser.add_argument("--heads", type=int, default=8, help="Number of heads")
     parser.add_argument(
         "--dropout", type=float, default=0.1, help="Dropout probability"
