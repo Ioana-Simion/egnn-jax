@@ -288,31 +288,25 @@ class EGNNTransformer(nn.Module):
     model_dim: int = 128
     num_heads: int = 8
     dropout_prob: float = 0.0
-    num_output: int = 1
+    output_dim: int = 3
 
     input_dropout_prob: float = 0.0
 
     predict_pos: bool = False
+    velocity: bool = False
+    n_nodes: int = 5
+
+    node_only: bool = False
+
 
     def setup(self):
 
         # CLS token embedding
         self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
 
-        # Input dim -> Model dim
+        # Node level
         self.input_dropout = nn.Dropout(self.input_dropout_prob)
-        self.input_layer_edges = nn.Dense(self.model_dim)
         self.input_layer_nodes = nn.Dense(self.model_dim)
-
-        # Edge Encoder
-        if self.num_edge_encoder_blocks > 0:
-            self.edge_encoder = TransformerEncoder(
-                num_layers=self.num_edge_encoder_blocks,
-                input_dim=self.model_dim,
-                num_heads=self.num_heads,
-                dim_feedforward=self.model_dim,
-                dropout_prob=self.dropout_prob,
-            )
 
         # Node Encoder
         self.node_encoder = TransformerEncoder(
@@ -323,38 +317,40 @@ class EGNNTransformer(nn.Module):
             dropout_prob=self.dropout_prob,
         )
 
-        # Combined Encoder
-        self.combined_encoder = TransformerEncoder(
-            num_layers=self.num_combined_encoder_blocks,
-            input_dim=self.model_dim,
-            num_heads=self.num_heads,
-            dim_feedforward=self.model_dim,
-            dropout_prob=self.dropout_prob,
-        )
-
-        # Cross Attention
-        self.cross_attention = MultiHeadCrossAttention(
-            embed_dim=self.model_dim,
-            num_heads=self.num_heads,
-        )
-
         # Output classifier
-        # TODO replace 5 with n_nodes, and 3 with outut dimension
-        self.output_net = nn.Dense(5 * 3)
+        self.output_net = nn.Dense(self.n_nodes * self.output_dim)
 
+        if not self.node_only:
+            self.input_layer_edges = nn.Dense(self.model_dim)
 
-    def __call__(self, node_inputs, edge_inputs, coords, vel, cross_mask=None, train=True):#x, edges, vel,
+            # Edge Encoder
+            if self.num_edge_encoder_blocks > 0:
+                self.edge_encoder = TransformerEncoder(
+                    num_layers=self.num_edge_encoder_blocks,
+                    input_dim=self.model_dim,
+                    num_heads=self.num_heads,
+                    dim_feedforward=self.model_dim,
+                    dropout_prob=self.dropout_prob,
+                )
+
+            # Combined Encoder
+            self.combined_encoder = TransformerEncoder(
+                num_layers=self.num_combined_encoder_blocks,
+                input_dim=self.model_dim,
+                num_heads=self.num_heads,
+                dim_feedforward=self.model_dim,
+                dropout_prob=self.dropout_prob,
+            )
+
+            # Cross Attention
+            self.cross_attention = MultiHeadCrossAttention(
+                embed_dim=self.model_dim,
+                num_heads=self.num_heads,
+            )
+
+    def __call__(self, node_inputs, edge_inputs, coords, vel, cross_mask=None, train=True):
 
         batch_size, _, _ = node_inputs.shape
-
-        # Input layer
-        edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
-        edge_encoded = self.input_layer_edges(edge_inputs)
-
-        # Edge Encoder
-        if self.num_edge_encoder_blocks > 0:
-            edge_encoded = self.edge_encoder(edge_encoded, mask=None, train=train)
-
 
         cls_tokens = jnp.tile(self.cls_token, (batch_size, 1, 1))
 
@@ -366,74 +362,35 @@ class EGNNTransformer(nn.Module):
         # Node Encoder
         node_encoded = self.node_encoder(node_encoded, mask=None, train=train)
 
-        # Cross Attention
-        edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
-        
-        node_encoded = node_encoded + edge_enrichment
+        if not self.node_only:
+            # Input layer
+            edge_inputs = self.input_dropout(edge_inputs, deterministic=not train)
+            edge_encoded = self.input_layer_edges(edge_inputs)
 
-        # Combined Encoder
-        node_encoded = self.combined_encoder(
-            node_encoded, mask=None, train=train
-        )
+            # Edge Encoder
+            if self.num_edge_encoder_blocks > 0:
+                edge_encoded = self.edge_encoder(edge_encoded, mask=None, train=train)
 
-        batch_size, heads, hidden_dim = node_encoded.shape
-        node_encoded = node_encoded.reshape(batch_size, heads * hidden_dim)
+            # Cross Attention
+            edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
 
-        output = self.output_net(node_encoded)
-        output = jnp.reshape(output, (batch_size, 5, 3))
-        output_coords = coords + output * vel
-        return output_coords
+            node_encoded = node_encoded + edge_enrichment
 
-
-class NodeEGNNTransformer(nn.Module):
-    num_encoder_blocks: int = 6
-
-    model_dim: int = 128
-    num_heads: int = 8
-    dropout_prob: float = 0.0
-    node_input_dim: int = 19
-
-    input_dropout_prob: float = 0.0
-
-    predict_pos: bool = False
-
-    def setup(self):
-
-        # CLS token embedding
-        self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
-
-        # Input dim -> Model dim
-        self.input_dropout = nn.Dropout(self.input_dropout_prob)
-        self.input_layer_nodes = nn.Dense(self.model_dim)
-
-        # Node Encoder
-        self.node_encoder = TransformerEncoder(
-            num_layers=self.num_encoder_blocks,
-            input_dim=self.model_dim,
-            num_heads=self.num_heads,
-            dim_feedforward=self.model_dim,
-            dropout_prob=self.dropout_prob,
-        )
-
-        # Output classifier
-        self.output_net = nn.Dense(1)
-
-    def __call__(self, x, mask=None, train=True):
-        
-        batch_size, num_nodes, _ = x.shape
-        
-        x = self.input_dropout(x, deterministic=not train)
-        x = self.input_layer_nodes(x)
-
-
-        cls_tokens = jnp.tile(self.cls_token, (batch_size, 1, 1))
-
-        x = jnp.concatenate([cls_tokens, x], axis=1)
-
-        # Node Encoder
-        x = self.node_encoder(x, mask=mask, train=train)
+            # Combined Encoder
+            node_encoded = self.combined_encoder(
+                node_encoded, mask=None, train=train
+            )
 
         if self.predict_pos:
-            return self.output_net(x)
-        # Output classifier
-        return self.output_net(x[:, 0])
+            batch_size, heads, hidden_dim = node_encoded.shape
+            node_encoded = node_encoded.reshape(batch_size, heads * hidden_dim)
+
+            output = self.output_net(node_encoded)
+            output = jnp.reshape(output, (batch_size, self.n_nodes, self.output_dim))
+
+            if self.velocity:
+                return coords + output * vel
+            else:
+                return coords + output
+        else:
+            return self.output_net(node_encoded[:, 0])

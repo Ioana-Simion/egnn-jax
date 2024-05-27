@@ -207,8 +207,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
             )
             train_loss += loss
             num_batches += 1
-            if num_batches > 30:
-                break
+
         train_loss /= num_batches
         train_scores.append(train_loss)
 

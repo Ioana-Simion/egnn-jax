@@ -54,9 +54,13 @@ def get_model(args: Namespace) -> nn.Module:
     if args.dataset == "qm9":
         num_out = 1
         predict_pos = False
+        velocity = False
+        n_nodes = 1
     elif args.dataset == "charged":
         num_out = 3
         predict_pos = True
+        velocity = True
+        n_nodes = 5
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -87,7 +91,9 @@ def get_model(args: Namespace) -> nn.Module:
             model_dim=args.dim,
             num_heads=args.heads,
             dropout_prob=args.dropout,
-            predict_pos=predict_pos
+            predict_pos=predict_pos,
+            n_nodes=n_nodes,
+            velocity=velocity,
         )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")
