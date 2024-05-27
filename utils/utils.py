@@ -82,8 +82,13 @@ def get_model(args: Namespace) -> nn.Module:
             out_node_nf=num_out,
             n_layers=args.num_layers)
 
-    elif args.model_name  =="transformer":
+    elif args.model_name == "transformer" or args.model_name == "invariant_transformer":
         from models.transformer import EGNNTransformer
+
+        if args.model_name == "invariant_transformer":
+            invariance = True
+        else:
+            invariance = False
 
         model = EGNNTransformer(
             num_edge_encoder_blocks=args.num_edge_encoders,
@@ -97,6 +102,7 @@ def get_model(args: Namespace) -> nn.Module:
             n_nodes=n_nodes,
             velocity=velocity,
             node_only=node_only,
+            invariant_pos=invariance,
         )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")

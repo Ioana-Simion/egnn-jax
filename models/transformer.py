@@ -285,6 +285,7 @@ class EGNNTransformer(nn.Module):
     n_nodes: int = 5
 
     node_only: bool = False
+    invariant_pos: bool = False
 
     def setup(self):
 
@@ -368,16 +369,13 @@ class EGNNTransformer(nn.Module):
             )
 
         if self.predict_pos:
-            # batch_size, nodes_cls_dim, hidden_dim = node_encoded.shape
-            # n_nodes = nodes_cls_dim - 1
-            # node_encoded = node_encoded.reshape(batch_size, heads * hidden_dim)
-
             output = self.output_net(node_encoded)
-            # output = jnp.reshape(output, (batch_size, self.n_nodes, self.output_dim))
-
-            if self.velocity:
-                return coords + output * vel
+            if self.invariant_pos:
+                return output
             else:
-                return coords + output
+                if self.velocity:
+                    return coords + output * vel
+                else:
+                    return coords + output
         else:
             return self.output_net(node_encoded[:, 0])
