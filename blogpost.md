@@ -199,17 +199,6 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
-    <td align="left">Position</td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
     <td align="left">0.0691</td>
     <td align="left">0.0639</td>
