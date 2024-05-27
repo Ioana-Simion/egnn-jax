@@ -360,9 +360,10 @@ class EGNNTransformer(nn.Module):
             # Cross Attention
             if not self.predict_pos:
                 edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded[:,1:,:], mask=cross_mask)
+                node_encoded.at[:,1:].set(node_encoded[:,1:] + edge_enrichment)
             else:
                 edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
-            node_encoded.at[:,1:].set(node_encoded[:,1:] + edge_enrichment)
+                node_encoded = node_encoded + edge_enrichment
             
             # Combined Encoder
             node_encoded = self.combined_encoder(
