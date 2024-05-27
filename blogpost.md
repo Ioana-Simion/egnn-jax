@@ -142,7 +142,7 @@ From reproducing the experiments, we obtain the following results:
     <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=5><b>Table 1.</b> Reproduction results from \[5, 7\] and comparison with DEMETAr.</td>
+    <td colspan=5><b>Table 1.</b> Reproduction results from [5, 7] and comparison with DEMETAr.</td>
   </tr>
 </table>
 
@@ -178,7 +178,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=10><b>Table 2.</b> Comparison of results for QM9, taken from \[7, 18\].</td>
+    <td colspan=10><b>Table 2.</b> Comparison of results for QM9, taken from [7, 18].</td>
   </tr>
 </table>
 
@@ -258,7 +258,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">6.3 · 10<sup>-7</sup></td>
   </tr>
   <tr align="left">
-    <td colspan=8><b>Table 3.</b> Comparison of results for the N-body task, taken from \[18\].</td>
+    <td colspan=8><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
   </tr>
 </table>
 
