@@ -1,114 +1,67 @@
-# from https://github.com/flooreijkelboom/equivariant-simplicial-mp/blob/main/qm9/utils.py
-
+import copy
+import jax.numpy as jnp
+from typing import Callable
+import jraph
 import torch
-from tqdm import tqdm
-from torch import Tensor
-from typing import Tuple, Dict
-from argparse import Namespace
-from torch_geometric.data import Data
-from torch_geometric.datasets import QM9
-from torch_geometric.loader import DataLoader
 
 
-def calc_mean_mad(loader: DataLoader) -> Tuple[Tensor, Tensor]:
-    """Return mean and mean average deviation of target in loader."""
-    values = [graph.y for graph in loader.dataset]
-    mean = sum(values) / len(values)
-    mad = sum([abs(v - mean) for v in values]) / len(values)
-    return mean, mad
+def GraphTransform(property_idx) -> Callable:
+    """
+    Build a function that converts torch geometric DataBatch into jraph.GraphsTuple.
+    Args:
+    property_idx: Index of the property to predict.
+    
+    Returns:
+    h : the one hot encoding of atomic numbers (dataset.x)
+    pos : Atoms positions (dataset.pos)
+    edge_indices : Edge indices (dataset.edge_index)
+    edge_attr: Edge attributes (dataset.edge_attr)
+    targets: Selected target property (dataset.y[:, property_idx])
+    """
+    def _to_jax(data):
+        jax_data = {key: jnp.array(value.numpy()) for key, value in data.items() if torch.is_tensor(value)}
+        
+        nodes = jax_data['x']
+        pos = jax_data['pos']
+        edge_indices = jax_data['edge_index']
+        edge_attr = jax_data['edge_attr'] if 'edge_attr' in jax_data else None
+        targets = jax_data['y'][:, property_idx]  # Select property to optimize for
+        targets = targets.reshape(-1,1)
+
+        return (nodes, pos, edge_indices, edge_attr), targets
+    
+    return _to_jax
 
 
-def prepare_data(
-    graph: Data, index: int, target_name: str, qm9_to_ev: Dict[str, float]
-) -> Data:
-    graph.y = graph.y[0, index]
-    one_hot = graph.x[:, :5]  # only get one_hot for cormorant
-    # change unit of targets
-    if target_name in qm9_to_ev:
-        graph.y *= qm9_to_ev[target_name]
+def TransformDLBatches(property_idx):
+    """
+    Build a function that converts torch geometric DataBatch into jraph.GraphsTuple.
+    Args:
+    property_idx: Index of the property to predict.
+    
+    Returns:
+    h : the one hot encoding of atomic numbers (dataset.x)
+    pos : Atoms positions (dataset.pos)
+    edge_indices : Edge indices (dataset.edge_index)
+    edge_attr: Edge attributes (dataset.edge_attr)
+    targets: Selected target property (dataset.y[:, property_idx])
+    """
+    def _to_jax(data):
+        
+        data = (jnp.array(x.numpy()) for x in data)
+        nodes, edge_attr, edge_index, pos, targets = data
+    
+        node_mask = (nodes.sum(axis=1) != 0).astype(jnp.float32)
+        targets = targets[:, property_idx]  # Select property to optimize for
+        targets = targets.reshape(-1,1)
 
-    Z_max = 9
-    Z = graph.x[:, 5]
-    Z_tilde = (Z / Z_max).unsqueeze(1).repeat(1, 5)
-
-    graph.x = torch.cat(
-        (one_hot, Z_tilde * one_hot, Z_tilde * Z_tilde * one_hot, graph.x[:, 6:-1]), dim=1
-    )
-
-    return graph
+        return (nodes, pos, edge_index, edge_attr, node_mask), targets
+    
+    return _to_jax
 
 
-def generate_loaders_qm9(args: Namespace) -> Tuple[DataLoader, DataLoader, DataLoader]:
-    data_root = f"./dataset/QM9"  # TODO _delta_{args.dis}_dim_{args.dim}
-    dataset = QM9(root=data_root)
-    dataset = dataset.shuffle()
-
-    # filter relevant index and update units to eV
-    qm9_to_ev = {
-        "U0": 27.2114,
-        "U": 27.2114,
-        "G": 27.2114,
-        "H": 27.2114,
-        "zpve": 27211.4,
-        "gap": 27.2114,
-        "homo": 27.2114,
-        "lumo": 27.2114,
-    }
-    targets = [
-        "mu",
-        "alpha",
-        "homo",
-        "lumo",
-        "gap",
-        "r2",
-        "zpve",
-        "U0",
-        "U",
-        "H",
-        "G",
-        "Cv",
-        "U0_atom",
-        "U_atom",
-        "H_atom",
-        "G_atom",
-        "A",
-        "B",
-        "C",
-    ]
-    index = targets.index(args.target_name)
-    dataset = [
-        prepare_data(graph, index, args.target_name, qm9_to_ev)
-        for graph in tqdm(dataset, desc="Preparing data")
-    ]
-
-    # train/val/test split
-    n_train, n_test = 100000, 110000
-    train_dataset = dataset[:n_train]
-    test_dataset = dataset[n_train:n_test]
-    val_dataset = dataset[n_test:]
-
-    # dataloaders
-    follow = [f"x_{i}" for i in range(args.dim + 1)] + ["x"]
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        shuffle=True,
-        follow_batch=follow,
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        shuffle=False,
-        follow_batch=follow,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        shuffle=False,
-        follow_batch=follow,
-    )
-
-    return train_loader, val_loader, test_loader
+class RemoveNumHs:
+    def __call__(self, data):
+        data = copy.copy(data)
+        data.x = data.x[:, :-1]
+        return data

@@ -17,3 +17,16 @@ assets/test_results.json
 assets/test.tar
 assets/transformer_results.json
 assets/test/*
+data/QM9/processed/data_v3.pt
+data/QM9/processed/pre_filter.pt
+data/QM9/processed/pre_transform.pt
+data/QM9/raw/gdb9.sdf
+data/QM9/raw/gdb9.sdf.csv
+data/QM9/raw/QM9_README
+data/QM9/raw/uncharacterized.txt
+assets/test/checkpoint_0/checkpoint
+assets/test/checkpoint_0/_METADATA
+assets/test/checkpoint_0/_CHECKPOINT_METADATA
+assets/test.tar
+assets/test_results.json
+data/QM9/raw/qm9.zip
