@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from functools import partial
 from models.egnn_jax import get_edges_batch
-from n_body.utils import NbodyGraphTransform
+from n_body.utils import NbodyBatchTransform
 from typing import Dict, Callable, Tuple, Iterable
 from utils.utils import get_model, get_loaders, set_seed
 from flax.training import train_state
@@ -380,6 +380,6 @@ if __name__ == "__main__":
     parsed_args.radius = 1000.0
     parsed_args.node_type = "continuous"
 
-    graph_transform = NbodyGraphTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
+    graph_transform = NbodyBatchTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
 
     train_model(parsed_args, graph_transform, "test", "assets")
