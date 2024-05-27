@@ -4,11 +4,11 @@
 
 ---
 
-This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately. This allows for more flexibility in the inputs we provide.
+This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately, which we implement in JAX. This allows for more flexibility in the inputs we provide.
 
 This blogpost serves three purposes: 
 1. Explain the ideas of equivariance in transformer networks while also explaining some of the methods used.
-2. Providing an overview of some reproduction results for other methods (i.e., the Equivariant Graph Neural Network).
+2. Provide an overview of some reproduction results for other methods (i.e., the Equivariant Graph Neural Network).
 3. Give an overview of our method and a comparison with the aforementioned reproduction results.
 
 ---
@@ -71,9 +71,18 @@ This idea of using the distances during computation forms one of the bases of ou
 
 ## **<a name="architecture">Equivariant Transformers</a>**
 
-Our method of improving this architecture would be to leverage the capabilites of transformers \[6\]. The key difference between these and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited , though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
+<table align="center">
+  <tr align="center">
+      <td><img src="assets/DEMETAr.png" width=800></td>
+  </tr>
+  <tr align="left">
+    <td colspan=2><b>Figure 1.</b> Visualization of the DEMETAr architecture.</td>
+  </tr>
+</table>
 
-As our contribution to the field, we introduce a dual encoder system. The first one contains all the node features and normalized distances to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
+Our method of improving the aforementioned architecture would be to leverage the capabilites of transformers \[6\]. The key difference between these and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited, though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
+
+As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first one contains all the node features and normalized distances to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
 
 To explain this approach, we first need to define the following components:
 
@@ -85,7 +94,7 @@ $$\begin{align}
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^p_e$, $V^p_e$ and perform the following attention operation:
 
 $$\begin{align} 
-Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt(d)}, \qquad \qquad \text{(Equation 9)}
+Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}}, \qquad \qquad \text{(Equation 9)}
 \end{align}$$
 
 where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by the dimension size $\sqrt(d)$ is to normalize the output scale, a method employed by most other transfomer architectures.
@@ -93,155 +102,175 @@ where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-atte
 Now, we need to obtain the node encodings, which is done through the following: 
 
 $$\begin{align} 
-Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{\sqrt(d)}, \qquad \qquad \text{(Equation 10)}
+Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{\sqrt{d}}, \qquad \qquad \text{(Equation 10)}
 \end{align}$$
 
-where $Z^r_n$ is the output of layer $r$, which is the encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $\sqrt(d)$.
+where $Z^r_n$ is the output of layer $r$, which is the encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $\sqrt{d}$.
 
-Now that we have both the node and edge features encoded, we can simply sum these encodings to combine them together:
+As we now have both the node and edge features encoded, we can simply sum these encodings to combine them together:
 
 $$\begin{align} 
 Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 11)}
 \end{align}$$
 
-where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. After this operation, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token which is used for classification in the $Z^0_j$ or the $Z^0_n$ input.
+where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. Afterwards, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token which is used for classification in the $Z^0_j$ or the $Z^0_n$ input.
+
+Our dual encoder system is equivariant is through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, the attention mechanism in our transformers uses adjacency masking to ensure that attention is only paid to connected nodes and edges, which inherently respects the graph structure and maintains the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
 
 
 ## **<a name="architecture">Evaluating the Models</a>**
 
 As a baseline, we compare our dual encoder transformer to varying architectures, with the first being from \[5\] as it is generally the best performing model. In addition, we also show the baseline performance reported in QM9 to show how our transformer fares with other transformer methods, specifically compared with that of \[7\] as it outperforms many other implementations in the benchmarks tasks (i.e., QM9) due to utilizing radial basis functions to expand the interatomic distances and adjusting the transformer operations to acommodate to these modified distances naturally.
-<!-- This is just an idea, because I'm not sure if we'll have enough time to handle running the other transformers. - Greg -->
 
-For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data.
+For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is a task which involves predicting quantum chemical properties (at DFT level) of small organic molecules and is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data, as it involves predicting the positions of particles depending on the charges and velocities.
 
 ## **<a name="reproduction">Reproduction of the Experiments</a>**
-<!-- 
-...
+
+From reproducing the experiments, we obtain the following results:
+
+
+
+## **<a name="comparison">Comparison with other Methods</a>**
+
+Meanwhile, when comparing with other implementations, we see below that our method ... . 
+
 
 <table align="center">
   <tr align="center">
-      <th align="left">Label</th>
-      <th align="left">$y_{ref}$</th>
-      <th align="left">$y_{target}$</th>
-      <th>$\lambda_{\text{CLIP}}$</th>
-      <th>$t_{\text{edit}}$</th>
-      <th>Domain</th>
+      <th align="left">TASK</th>
+      <th align="left">UNITS</th>
+      <th align="left">ε<sub>HOMO</sub><br>meV</th>
   </tr>
   <tr align="center">
-    <td align="left">smiling</td>
-    <td align="left">"face"</td>
-    <td align="left">"smiling face"</td>
-    <td>0.8</td>
-    <td>513</td>
-    <td>IN</td>
+    <td align="left">WaveScatt</td>
+    <td align="left"></td>
+    <td align="left">85</td>
   </tr>
   <tr align="center">
-    <td align="left">sad</td>
-    <td align="left">"face"</td>
-    <td align="left">"sad face"</td>
-    <td>0.8</td>
-    <td>513</td>
-    <td>IN</td>
+    <td align="left">NMP</td>
+    <td align="left"></td>
+    <td align="left">43</td>
   </tr>
   <tr align="center">
-    <td align="left">angry</td>
-    <td align="left">"face"</td>
-    <td align="left">"angry face"</td>
-    <td>0.8</td>
-    <td>512</td>
-    <td>IN</td>
+    <td align="left">SchNet</td>
+    <td align="left"></td>
+    <td align="left">41</td>
   </tr>
   <tr align="center">
-    <td align="left">tanned</td>
-    <td align="left">"face"</td>
-    <td align="left">"tanned face"</td>
-    <td>0.8</td>
-    <td>512</td>
-    <td>IN</td>
+    <td align="left">Cormorant/td>
+    <td align="left"></td>
+    <td align="left">34</td>
   </tr>
   <tr align="center">
-    <td align="left">man</td>
-    <td align="left">"a person"</td>
-    <td align="left">"a man"</td>
-    <td>0.8</td>
-    <td>513</td>
-    <td>IN</td>
+    <td align="left">LieConv(T3)</td>
+    <td align="left"></td>
+    <td align="left">30</td>
   </tr>
   <tr align="center">
-    <td align="left">woman</td>
-    <td align="left">"a person"</td>
-    <td align="left">"a woman"</td>
-    <td>0.8</td>
-    <td>513</td>
-    <td>IN</td>
+    <td align="left">TFN</td>
+    <td align="left"></td>
+    <td align="left">40</td>
   </tr>
   <tr align="center">
-    <td align="left">young</td>
-    <td align="left">"person"</td>
-    <td align="left">"young person"</td>
-    <td>0.8</td>
-    <td>515</td>
-    <td>IN</td>
+    <td align="left">SE(3)-Transformer</td>
+    <td align="left"></td>
+    <td align="left">35.0±.9</td>
   </tr>
-  <tr align="center">
-    <td align="left">curly hair</td>
-    <td align="left">"person"</td>
-    <td align="left">"person with curly hair"</td>
-    <td>0.8</td>
-    <td>499</td>
-    <td>IN</td>
-  </tr>
-  <tr align="center">
-    <td align="left">nicolas</td>
-    <td align="left">"Person"</td>
-    <td align="left">"Nicolas Cage"</td>
-    <td>0.8</td>
-    <td>461</td>
-    <td>UN</td>
-  </tr>
-  <tr align="center">
-    <td align="left">pixar</td>
-    <td align="left">"Human"</td>
-    <td align="left">"3D render in the style of Pixar"</td>
-    <td>0.8</td>
-    <td>446</td>
-    <td>UN</td>
-  </tr>
-  <tr align="center">
-    <td align="left">neanderthal</td>
-    <td align="left">"Human"</td>
-    <td align="left">"Neanderthal"</td>
-    <td>1.2</td>
-    <td>490</td>
-    <td>UN</td>
-  </tr>
-  <tr align="center">
-    <td align="left">modigliani</td>
-    <td align="left">"photo"</td>
-    <td align="left">"Painting in Modigliani style"</td>
-    <td>0.8</td>
-    <td>403</td>
-    <td>UN</td>
-  </tr>
-  <tr align="center">
-    <td align="left">frida</td>
-    <td align="left">"photo"</td>
-    <td align="left">"self-portrait by Frida Kahlo"</td>
-    <td>0.8</td>
-    <td>321</td>
-    <td>UN</td>
-  </tr>
-  <tr align="left">
-    <td colspan=7><b>Table 1.</b> Hyperparameter settings of reproducibility experiments. The "domain" column corresponds<br>to the attribute being in-domain (IN) or unseen-domain (UN).</td>
+    <td colspan=8><b>Table 2.</b> Comparison of results for QM9.</td>
   </tr>
 </table>
 
-... -->
+
+<table align="center">
+  <tr align="center">
+      <th align="left"></th>
+      <th align="left">Linear</th>
+      <th align="left">DeepSet</th>
+      <th align="left">Tensor Field</th>
+      <th align="left">Set Transformer</th>
+      <th align="left">SE(3)-Transformer</th>
+  </tr>
+  <tr align="center">
+    <td align="left">Position</td>
+    <td align="left"></td>
+    <td align="left"></td>
+    <td align="left"></td>
+    <td align="left"></td>
+    <td align="left"></td>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>x</sub></td>
+    <td align="left">0.0691</td>
+    <td align="left">0.0639</td>
+    <td align="left">0.0151</td>
+    <td align="left">0.0139</td>
+    <td align="left"><b>0.0076</b></td>
+  </tr>
+  <tr align="center">
+    <td align="left">std</td>
+    <td align="left">-</td>
+    <td align="left">0.0086</td>
+    <td align="left">0.0011</td>
+    <td align="left">0.0004</td>
+    <td align="left">0.0002</td>
+  </tr>
+  <tr align="center">
+    <td align="left">Δ<sub>EQ</sub></td>
+    <td align="left">-</td>
+    <td align="left">0.038</td>
+    <td align="left">1.9 · 10<sup>-7</sup></td>
+    <td align="left">0.167</td>
+    <td align="left">3.2 · 10<sup>-7</sup></td>
+  </tr>
+  <tr align="center">
+    <td align="left">Velocity</td>
+    <td align="left"></td>
+    <td align="left"></td>
+    <td align="left"></td>
+    <td align="left"></td>
+    <td align="left"></td>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>v</sub></td>
+    <td align="left">0.261</td>
+    <td align="left">0.246</td>
+    <td align="left">0.125</td>
+    <td align="left">0.101</td>
+    <td align="left"><b>0.075</b></td>
+  </tr>
+  <tr align="center">
+    <td align="left">std</td>
+    <td align="left">-</td>
+    <td align="left">0.017</td>
+    <td align="left">0.002</td>
+    <td align="left">0.004</td>
+    <td align="left">0.001</td>
+  </tr>
+  <tr align="center">
+    <td align="left">Δ<sub>EQ</sub></td>
+    <td align="left">-</td>
+    <td align="left">1.11</td>
+    <td align="left">5.0 · 10<sup>-7</sup></td>
+    <td align="left">0.37</td>
+    <td align="left">6.3 · 10<sup>-7</sup></td>
+  </tr>
+  <tr align="left">
+    <td colspan=3><b>Table 3.</b> Comparison of results for the N-body task.</td>
+  </tr>
+</table>
+
+## **<a name="speed">Comparison of Speed</a>**
+
+As our method is implemented using JAX, one advantage is that it is provably faster than the standard PyTorch library. This can be seen in the following graph:
+
+...
+
+Furthermore, having the implementation be fully in JAX allows it to benefit from JIT, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
 
 ## **Concluding Remarks**
 
-...
+Based on the above, it can be concluded that our method is comparable to other methods that have already been developed in the field.
 
 ## **Authors' Contributions**
 
