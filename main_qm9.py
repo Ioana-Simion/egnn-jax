@@ -149,7 +149,9 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
 
         if epoch % args.val_freq == 0:
             val_loss = eval_fn(val_loader, params, max_num_nodes)
-            val_scores.append(float(jax.device_get(val_loss)))
+            val_loss_item = float(jax.device_get(val_loss))
+            val_scores.append(val_loss_item)
+            writer.add_scalar('Loss/val', train_loss, epoch)
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
 
             if len(val_scores) == 1 or val_loss < val_scores[best_val_epoch]:
