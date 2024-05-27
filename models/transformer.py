@@ -359,8 +359,10 @@ class EGNNTransformer(nn.Module):
                 edge_encoded = self.edge_encoder(edge_encoded, mask=None, train=train)
 
             # Cross Attention
-            edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
-
+            if not self.predict_pos:
+                edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded[:,1:,:], mask=cross_mask)
+            else:
+                edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
             node_encoded = node_encoded + edge_enrichment
 
             # Combined Encoder
