@@ -11,7 +11,7 @@ from functools import partial
 from qm9.utils import GraphTransform, TransformDLBatches
 from flax.training import checkpoints
 from typing import Callable
-from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index
+from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, denormalize, normalize
 import gc
 from torch.utils.tensorboard import SummaryWriter
 
@@ -76,6 +76,8 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes,
             target, model_fn, meann, mad, training=True, task="graph"):
     if not training:
         pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
+        pred = denormalize(pred, meann, mad)
+        target = denormalize(target, meann, mad)
     else:
         pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
     #target = normalize(target, meann, mad) if training else target
