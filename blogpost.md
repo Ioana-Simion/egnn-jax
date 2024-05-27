@@ -210,7 +210,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=7><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
+    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
   </tr>
 </table>
 
