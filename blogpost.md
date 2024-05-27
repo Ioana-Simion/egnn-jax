@@ -206,6 +206,8 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left"></td>
     <td align="left"></td>
     <td align="left"></td>
+    <td align="left"></td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
@@ -214,6 +216,8 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
+    <td align="left"></td>
+    <td align="left"></td> 0.011273
     <td align="left"></td>
   </tr>
   <tr align="center">
@@ -224,14 +228,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0004</td>
     <td align="left">0.0002</td>
     <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">Δ<sub>EQ</sub></td>
-    <td align="left">-</td>
-    <td align="left">0.038</td>
-    <td align="left">1.9 · 10<sup>-7</sup></td>
-    <td align="left">0.167</td>
-    <td align="left">3.2 · 10<sup>-7</sup></td>
+    <td align="left"></td>
     <td align="left"></td>
   </tr>
   <tr align="left">
