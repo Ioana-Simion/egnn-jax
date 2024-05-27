@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import flax.linen as nn
-
+from jax import vmap
 
 # This function is taken from:
 # https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
@@ -16,6 +16,27 @@ def scaled_dot_product(q, k, v, mask=None):
     values = jnp.matmul(attention, v)
 
     return values, attention
+
+def mask_from_edges():
+    def _mask_from_edges(edge_index, num_nodes, num_edges):
+        mask = jnp.zeros((num_nodes, num_edges))
+        row, col = edge_index
+
+        # Find valid (non-padding) indices
+        valid_row_mask = (row != -1)
+        valid_col_mask = (col != -1)
+        
+        valid_rows = jnp.where(valid_row_mask, row, 0)
+        valid_cols = jnp.where(valid_col_mask, col, 0)
+
+        # Set -inf for valid edges
+        mask = mask.at[valid_rows, jnp.arange(num_edges).astype(jnp.int32)].set(-jnp.inf * valid_row_mask)
+        mask = mask.at[valid_cols, jnp.arange(num_edges).astype(jnp.int32)].set(-jnp.inf * valid_col_mask)
+        is_neg_inf = jnp.isneginf(mask)
+        mask = jnp.where(is_neg_inf, 0.0, -jnp.inf)
+        return mask
+    return vmap(_mask_from_edges, in_axes=(0, None, None))
+
 
 
 # Helper function to support different mask shapes.

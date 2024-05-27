@@ -133,8 +133,16 @@ def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
     if args.dataset == "qm9":
         num_out = 1
+        predict_pos = False
+        velocity = False
+        n_nodes = 1
+        node_only = False
     elif args.dataset == "charged":
         num_out = 3
+        predict_pos = True
+        velocity = True
+        n_nodes = 5
+        node_only = False
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -146,19 +154,34 @@ def get_model(args: Namespace) -> nn.Module:
             out_node_nf=num_out,
             n_layers=args.num_layers,
         )
-    elif args.model_name == 'transformer':
+    elif args.model_name == "egnn_vel":
+        from models.egnn_jax import EGNN_vel
+
+        model = EGNN_vel(
+            hidden_nf=args.num_hidden,
+            out_node_nf=num_out,
+            n_layers=args.num_layers)
+
+    elif args.model_name == "transformer" or args.model_name == "invariant_transformer":
         from models.transformer import EGNNTransformer
+
+        if args.model_name == "invariant_transformer":
+            invariance = True
+        else:
+            invariance = False
 
         model = EGNNTransformer(
             num_edge_encoder_blocks=args.num_edge_encoders,
             num_node_encoder_blocks=args.num_node_encoders,
             num_combined_encoder_blocks= args.num_combined_encoder_blocks,
-
             model_dim=args.dim,
             num_heads=args.heads,
             dropout_prob=args.dropout,
-            edge_input_dim= args.edge_input_dim,
-            node_input_dim= args.node_input_dim,
+            predict_pos=predict_pos,
+            n_nodes=n_nodes,
+            velocity=velocity,
+            node_only=node_only,
+            invariant_pos=invariance,
         )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")
@@ -225,6 +248,7 @@ def get_loaders_and_statistics(
             )
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
+        return train_loader, val_loader, test_loader
     else:
         raise ValueError(f"Dataset {args.dataset} not recognized.")
 

@@ -10,7 +10,7 @@ class NBodyDataset:
 
     """
 
-    def __init__(self, partition="train", max_samples=1e8, dataset_name="nbody_small"):
+    def __init__(self, partition="train", max_samples=1e8, dataset_name="nbody_small", base_path='/n_body/dataset/data/'):
         self.partition = partition
         if self.partition == "val":
             self.sufix = "valid"
@@ -26,13 +26,15 @@ class NBodyDataset:
 
         self.max_samples = int(max_samples)
         self.dataset_name = dataset_name
+        self.base_path = base_path
         self.data, self.edges = self.load()
 
+
     def load(self):
-        loc = np.load("n_body/dataset/data/loc_" + self.sufix + ".npy")
-        vel = np.load("n_body/dataset/data/vel_" + self.sufix + ".npy")
-        edges = np.load("n_body/dataset/data/edges_" + self.sufix + ".npy")
-        charges = np.load("n_body/dataset/data/charges_" + self.sufix + ".npy")
+        loc = np.load(self.base_path + "loc_" + self.sufix + ".npy")
+        vel = np.load(self.base_path + "vel_" + self.sufix + ".npy")
+        edges = np.load(self.base_path + "edges_" + self.sufix + ".npy")
+        charges = np.load(self.base_path + "charges_" + self.sufix + ".npy")
 
         loc, vel, edge_attr, edges, charges = self.preprocess(loc, vel, edges, charges)
         return (loc, vel, edge_attr, charges), edges
@@ -81,7 +83,7 @@ class NBodyDataset:
         if self.dataset_name == "nbody":
             frame_0, frame_T = 6, 8
         elif self.dataset_name == "nbody_small":
-            frame_0, frame_T = 30, 40
+            frame_0, frame_T = 6, 8
         elif self.dataset_name == "nbody_small_out_dist":
             frame_0, frame_T = 20, 30
         else:
