@@ -49,12 +49,7 @@ def collate_fn(data_list):
 
     return x, edge_attr, pos, mask, edge_mask, y
 
-def get_collate_fn_egnn(dataset, meann, mad):
-    print("calculating max num nodes and edges")
-    max_num_nodes = max([len(x.x) for x in dataset])
-    max_num_edges = max([x.edge_index.shape[-1] for x in dataset])
-    print("max num nodes", max_num_nodes)
-    print("max num edges", max_num_edges)
+def get_collate_fn_egnn(dataset, meann, mad, max_num_nodes, max_num_edges):
 
     def _collate_fn_egnn(data_list):
         x = [d.x for d in data_list]
@@ -114,6 +109,14 @@ def get_property_index(property_name):
         'zpve': 11
     }
     return property_dict[property_name]
+
+def compute_max_nodes_and_edges(dataset):
+    print("calculating max num nodes and edges")
+    max_num_nodes = max([len(x.x) for x in dataset])
+    max_num_edges = max([x.edge_index.shape[-1] for x in dataset])
+    print("max num nodes", max_num_nodes)
+    print("max num edges", max_num_edges)
+    return max_num_nodes, max_num_edges
 
 
 def compute_meann_mad(dataset, property_idx):
@@ -179,6 +182,9 @@ def get_loaders_and_statistics(
             # Distance transform handles distances between atoms
             dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]))
             
+            meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
+            max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
+
             train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
             val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
             test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn)
@@ -187,6 +193,7 @@ def get_loaders_and_statistics(
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
             
             meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
+            max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
 
             collate_fn_egnn = get_collate_fn_egnn(dataset, meann, mad)
 
@@ -217,7 +224,7 @@ def get_loaders_and_statistics(
     else:
         raise ValueError(f"Dataset {args.dataset} not recognized.")
 
-    return train_loader, val_loader, test_loader, meann, mad
+    return train_loader, val_loader, test_loader, meann, mad, max_num_nodes, max_num_edges
 
 
 def set_seed(seed: int = 42) -> None:

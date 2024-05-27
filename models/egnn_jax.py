@@ -41,7 +41,7 @@ class E_GCL(nn.Module):
 
     def node_model(self, edge_index, edge_attr, x):
         row, col = edge_index
-        agg = unsorted_segment_sum(edge_attr, row, num_segments=x.shape[0])
+        agg = unsorted_segment_sum(edge_attr, row, num_segments=x.shape[0]+1)
 
         node_mlp = nn.Sequential(
             [nn.Dense(self.hidden_nf), self.act_fn, nn.Dense(self.hidden_nf)]
@@ -93,12 +93,15 @@ class EGNN(nn.Module):
     residual: bool = True
 
     @nn.compact
-    def __call__(self, h, x, edges, edge_attr):
+    def __call__(self, h, x, edges, edge_attr, node_mask, n_nodes):
         h = nn.Dense(self.hidden_nf)(h)
         for i in range(self.n_layers):
             h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
                 h, edges, x, edge_attr=edge_attr
             )  # name=f"gcl_{i}"
+        h = h * node_mask[:, None]
+        h = h.reshape(-1, n_nodes, self.hidden_nf)
+        h = jnp.sum(h, axis=1)
         h = nn.Dense(self.out_node_nf)(h)
         return h, x
 

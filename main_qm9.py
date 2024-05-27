@@ -36,10 +36,10 @@ def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update"])
-def update(params, x, edge_attr, edge_index, pos, node_mask, target, opt_state, loss_fn, opt_update):
+def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target, opt_state, loss_fn, opt_update):
     #using jax grad only instead of value and grad
-    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, target)
-    loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask, target)
+    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target)
+    loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
@@ -72,30 +72,39 @@ def create_padding_mask(h, x, edges, edge_attr):
 
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training"])
-def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, target, model_fn, meann, mad, training=True, task="graph"):
-    pred = model_fn(params, h, pos, edge_index, edge_attr)[0]
+def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, 
+            target, model_fn, meann, mad, training=True, task="graph"):
+    pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
     #target = normalize(target, meann, mad) if training else target
     #pred = normalize(pred, meann, mad) if training else pred
 
-    target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
-    pred = pred * node_mask[:, None]
-    target_padded = target_padded * node_mask[:, None]
+    #target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
+    #pred = pred * node_mask[:, None]
+    #target_padded = target_padded * node_mask[:, None]
 
-    assert pred.shape == target_padded.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target_padded.shape}"
-    return jnp.mean(jnp.abs(pred - target_padded))
+    assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
+    return jnp.mean(jnp.abs(pred - target))
 
-def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph"):
+def evaluate(loader, params, loss_fn, max_num_nodes, graph_transform, meann, mad, task="graph"):
     eval_loss = 0.0
     for data in tqdm(loader, desc="Evaluating", leave=False):
         feat, target = graph_transform(data)
         h, x, edges, edge_attr, node_mask = feat
         node_mask = create_padding_mask(h, x, edges, edge_attr)
-        loss = loss_fn(params, h, edge_attr, edges, x, target, node_mask=node_mask, meann=meann, mad=mad, training=False)
+        loss = loss_fn(params, h, edge_attr, edges, x, target, node_mask=node_mask, max_num_nodes=max_num_nodes, meann=meann, mad=mad, training=False)
         eval_loss += loss
     return eval_loss / len(loader)
 
 def train_model(args, model, graph_transform, model_name, checkpoint_path):
-    train_loader, val_loader, test_loader, meann, mad = get_loaders_and_statistics(args)
+    (
+        train_loader, 
+        val_loader, 
+        test_loader, 
+        meann, 
+        mad, 
+        max_num_nodes, 
+        max_num_edges
+    ) = get_loaders_and_statistics(args)
 
     property_idx = get_property_index(args.property)
     graph_transform_fn = graph_transform(property_idx)
@@ -106,7 +115,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     init_feat, _ = graph_transform_fn(next(iter(train_loader)))
     
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
-    params = model.init(jax_seed, *init_feat[:-1])
+    params = model.init(jax_seed, *(init_feat+[max_num_nodes]))
     opt_state = opt_init(params)
 
     loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, task=args.task)
@@ -123,7 +132,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             feat, target = graph_transform_fn(batch)
             x, pos, edge_index, edge_attr, node_mask = feat
             #node_mask = create_padding_mask(h, x, edges, edge_attr)
-            loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, target=target, opt_state=opt_state)
+            loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
             train_loss += loss.item()
 
             # Manually trigger garbage collection
