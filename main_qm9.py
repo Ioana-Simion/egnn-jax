@@ -13,6 +13,7 @@ from flax.training import checkpoints
 from typing import Callable
 from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index
 import gc
+from torch.utils.tensorboard import SummaryWriter
 
 
 # Seeding
@@ -123,7 +124,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             x, pos, edge_index, edge_attr, node_mask = feat
             #node_mask = create_padding_mask(h, x, edges, edge_attr)
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, target=target, opt_state=opt_state)
-            train_loss += loss
+            train_loss += loss.item()
 
             # Manually trigger garbage collection
             gc.collect()
@@ -131,6 +132,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
 
         train_loss /= len(train_loader)
         train_scores.append(float(jax.device_get(train_loss)))
+        writer.add_scalar('Loss/train', train_loss, epoch)
 
         if epoch % args.val_freq == 0:
             val_loss = eval_fn(val_loader, params)
@@ -251,6 +253,8 @@ if __name__ == "__main__":
     parsed_args.node_type = "continuous"
 
     graph_transform = TransformDLBatches
-    
+
+    writer = SummaryWriter(log_dir="runs")
+
     model = get_model(parsed_args)
     train_model(parsed_args, model, graph_transform, "test", "assets")
