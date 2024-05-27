@@ -47,6 +47,8 @@ def NbodyGraphTransform(
         for _ in range(batch_size)]
     )  # Shape: (batch_size, 2, n_edges)
 
+    mask_from_edges_batched = mask_from_edges()
+
     def _to_egnn(
         data: List,
     ):
@@ -124,7 +126,7 @@ def NbodyGraphTransform(
         cur_batch = int(pos.shape[0] / n_nodes)
 
         edge_indices = full_edge_indices[:, : n_nodes * (n_nodes - 1) * cur_batch]
-        cross_mask = mask_from_edges(batched_edge_indices, n_nodes, n_nodes * (n_nodes - 1))
+        cross_mask = mask_from_edges_batched(batched_edge_indices, n_nodes, n_nodes * (n_nodes - 1))
         rows, cols = edge_indices[0], edge_indices[1]
 
         vel_attr = get_velocity_attr(pos, vel, rows, cols)

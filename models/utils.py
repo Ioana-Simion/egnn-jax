@@ -18,7 +18,7 @@ def scaled_dot_product(q, k, v, mask=None):
 
     return values, attention
 
-def mask_from_edges(edge_index, num_nodes, num_edges):
+def mask_from_edges():
     def _mask_from_edges(edge_index, num_nodes, num_edges):
         mask = jnp.zeros((num_nodes, num_edges))
         row, col = edge_index
