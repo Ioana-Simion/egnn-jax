@@ -174,16 +174,16 @@ def get_loaders_and_statistics(
         from torch_geometric.datasets import QM9
         import torch_geometric.transforms as T
 
-        num_train = 100000
-        num_val = (len(dataset) - num_train) // 2
-        num_test = len(dataset) - num_train - num_val
-
         if transformer:
             # Distance transform handles distances between atoms
             dataset = QM9(root='data/QM9', pre_transform=T.Compose([T.Distance(), RemoveNumHs(), NodeDistance(normalize=True)]))
             
             meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
             max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
+
+            num_train = 100000
+            num_val = (len(dataset) - num_train) // 2
+            num_test = len(dataset) - num_train - num_val
 
             train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
             val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
@@ -192,6 +192,10 @@ def get_loaders_and_statistics(
         else:
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
             
+            num_train = 100000
+            num_val = (len(dataset) - num_train) // 2
+            num_test = len(dataset) - num_train - num_val
+
             meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
             max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
 
