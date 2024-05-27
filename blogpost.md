@@ -205,43 +205,18 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
-    <td align="left">Position</td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
     <td align="left">0.0691</td>
     <td align="left">0.0639</td>
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">std</td>
-    <td align="left">-</td>
-    <td align="left">0.0086</td>
-    <td align="left">0.0011</td>
-    <td align="left">0.0004</td>
-    <td align="left">0.0002</td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">Δ<sub>EQ</sub></td>
-    <td align="left">-</td>
-    <td align="left">0.038</td>
-    <td align="left">1.9 · 10<sup>-7</sup></td>
-    <td align="left">0.167</td>
-    <td align="left">3.2 · 10<sup>-7</sup></td>
+    <td align="left">0.109965</td>
+    <td align="left">0.011273</td> 
     <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=7><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
+    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
   </tr>
 </table>
 
