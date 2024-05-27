@@ -85,7 +85,7 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes,
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
     return jnp.mean(jnp.abs(pred - target))
 
-def evaluate(loader, params, loss_fn, max_num_nodes, graph_transform, meann, mad, task="graph"):
+def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad, task="graph"):
     eval_loss = 0.0
     for data in tqdm(loader, desc="Evaluating", leave=False):
         feat, target = graph_transform(data)
