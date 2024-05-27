@@ -200,7 +200,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">Tensor Field</th>
       <th align="left">Set Transformer</th>
       <th align="left">SE(3)-Transformer</th>
-      <th align="left">standard Transformer</th>
+      <th align="left">standard Node only Transformer</th>
       <th align="left">equivariant Node only Transformer</th>
       <th align="left">DEMETAr</th>
   </tr>
