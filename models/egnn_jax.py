@@ -113,6 +113,7 @@ def unsorted_segment_sum(data, segment_ids, num_segments):
 def unsorted_segment_mean(data, segment_ids, num_segments):
     seg_sum = jax.ops.segment_sum(data, segment_ids, num_segments)
     seg_count = jax.ops.segment_sum(jnp.ones_like(data), segment_ids, num_segments)
+    seg_count = jnp.maximum(seg_count, 1) # Avoid 0 division
     return seg_sum / seg_count
 
 
