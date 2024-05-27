@@ -4,7 +4,7 @@
 
 ---
 
-This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately, which we implement in JAX. This allows for more flexibility in the inputs we provide.
+This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately (which we implement in JAX mostly from scratch). This allows for more flexibility in the inputs we provide.
 
 This blogpost serves three purposes: 
 1. Explain the ideas of equivariance in transformer networks while also explaining some of the methods used.

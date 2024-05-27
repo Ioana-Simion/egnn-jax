@@ -1,4 +1,4 @@
-# The contents of this file are mostly taken from:
+# The contents of this file are partially taken from:
 # https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
 # It has here been adapted into an EGNN framework.
 
@@ -158,11 +158,14 @@ class TransformerEncoder(nn.Module):
         self.layers = (
             [
                 EncoderBlock(
-                    self.input_dim, self.num_heads, self.dim_feedforward, self.dropout_prob
+                    self.input_dim,
+                    self.num_heads,
+                    self.dim_feedforward,
+                    self.dropout_prob,
                 )
                 for _ in range(self.num_layers)
-            ] 
-            if self.num_layers > 0 
+            ]
+            if self.num_layers > 0
             else []
         )
 
@@ -299,7 +302,9 @@ class EGNNTransformer(nn.Module):
     def setup(self):
 
         # CLS token embedding
-        self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
+        self.cls_token = self.param(
+            "cls", nn.initializers.zeros, [1, 1, self.model_dim]
+        )
 
         # Input dim -> Model dim
         self.input_dropout = nn.Dropout(self.input_dropout_prob)
@@ -344,7 +349,7 @@ class EGNNTransformer(nn.Module):
         self.output_net = nn.Dense(1)
 
     def __call__(self, edge_inputs, node_inputs, cross_mask=None, train=True):
-        
+
         batch_size, num_nodes, _ = node_inputs.shape
 
         # Input layer
@@ -354,7 +359,6 @@ class EGNNTransformer(nn.Module):
         # Edge Encoder
         if self.num_edge_encoder_blocks > 0:
             edge_encoded = self.edge_encoder(edge_encoded, mask=None, train=train)
-
 
         cls_tokens = jnp.tile(self.cls_token, (batch_size, 1, 1))
 
@@ -367,14 +371,14 @@ class EGNNTransformer(nn.Module):
         node_encoded = self.node_encoder(node_encoded, mask=None, train=train)
 
         # Cross Attention
-        edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
-        
+        edge_enrichment, _ = self.cross_attention(
+            edge_encoded, node_encoded, mask=cross_mask
+        )
+
         node_encoded = node_encoded + edge_enrichment
 
         # Combined Encoder
-        node_encoded = self.combined_encoder(
-            node_encoded, mask=None, train=train
-        )
+        node_encoded = self.combined_encoder(node_encoded, mask=None, train=train)
 
         if self.predict_pos:
             return self.output_net(node_encoded)
@@ -397,7 +401,9 @@ class NodeEGNNTransformer(nn.Module):
     def setup(self):
 
         # CLS token embedding
-        self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
+        self.cls_token = self.param(
+            "cls", nn.initializers.zeros, [1, 1, self.model_dim]
+        )
 
         # Input dim -> Model dim
         self.input_dropout = nn.Dropout(self.input_dropout_prob)
@@ -416,12 +422,11 @@ class NodeEGNNTransformer(nn.Module):
         self.output_net = nn.Dense(1)
 
     def __call__(self, x, mask=None, train=True):
-        
+
         batch_size, num_nodes, _ = x.shape
-        
+
         x = self.input_dropout(x, deterministic=not train)
         x = self.input_layer_nodes(x)
-
 
         cls_tokens = jnp.tile(self.cls_token, (batch_size, 1, 1))
 

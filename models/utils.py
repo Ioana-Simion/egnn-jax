@@ -1,10 +1,9 @@
-# The contents of this file are mostly taken from:
-# https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
-
 import jax.numpy as jnp
 import flax.linen as nn
 
 
+# This function is taken from:
+# https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
 def scaled_dot_product(q, k, v, mask=None):
 
     d_k = jnp.array(q.shape[-1])
