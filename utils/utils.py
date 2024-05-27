@@ -195,7 +195,7 @@ def get_loaders_and_statistics(
             meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
             max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
 
-            collate_fn_egnn = get_collate_fn_egnn(dataset, meann, mad)
+            collate_fn_egnn = get_collate_fn_egnn(dataset, meann, mad, max_num_nodes, max_num_edges)
 
             train_loader = DataLoader(
                 dataset[:num_train],
