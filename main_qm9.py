@@ -1,6 +1,3 @@
-import torch.multiprocessing as multiprocessing
-multiprocessing.set_start_method('spawn')
-
 import os
 import jax
 import jraph
@@ -79,6 +76,8 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes,
             target, model_fn, meann, mad, training=True, task="graph"):
     if not training:
         pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
+    else:
+        pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
     #target = normalize(target, meann, mad) if training else target
     #pred = normalize(pred, meann, mad) if training else pred
 
