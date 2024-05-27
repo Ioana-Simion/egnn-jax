@@ -169,7 +169,7 @@ class E_GCL(nn.Module):
         return h, coord, m_ij
 
 
-class EGNN(nn.Module):
+class EGNN_equiv(nn.Module):
     hidden_nf: int
     out_node_nf: int
     act_fn: callable = nn.silu  # default activation function
@@ -181,8 +181,27 @@ class EGNN(nn.Module):
         h = nn.Dense(self.hidden_nf)(h)
         for i in range(self.n_layers):
             h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
-                h, edges, x, edge_attr=edge_attr
-            )  # name=f"gcl_{i}"
+                h, edges, x, edge_attr=edge_attr)
+        h = nn.Dense(self.out_node_nf)(h)
+        return h, x
+
+
+class EGNN_QM9(nn.Module):
+    hidden_nf: int
+    out_node_nf: int
+    act_fn: callable = nn.silu  # default activation function
+    n_layers: int = 4
+    residual: bool = True
+
+    @nn.compact
+    def __call__(self, h, x, edges, edge_attr, node_mask, n_nodes):
+        h = nn.Dense(self.hidden_nf)(h)
+        for i in range(self.n_layers):
+            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
+                h, edges, x, edge_attr=edge_attr)
+        h = h * node_mask[:, None]
+        h = h.reshape(-1, n_nodes, self.hidden_nf)
+        h = jnp.sum(h, axis=1)
         h = nn.Dense(self.out_node_nf)(h)
         return h, x
 
@@ -200,8 +219,7 @@ class EGNN_vel(nn.Module):
         for i in range(self.n_layers):
             h, x, _ = E_GCL_vel(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
                 h, edges, x, vel, edge_attr=edge_attr
-            )  # name=f"gcl_{i}"
-        #h = nn.Dense(self.out_node_nf)(h)
+            )
         return h, x
 
 
@@ -262,7 +280,7 @@ if __name__ == "__main__":
     rng = jax.random.PRNGKey(42)
 
     # Initialize EGNN
-    egnn = EGNN(hidden_nf=32, out_node_nf=1)
+    egnn = EGNN_equiv(hidden_nf=32, out_node_nf=1)
 
     params = egnn.init(rng, h, x, edges, edge_attr)["params"]
 
