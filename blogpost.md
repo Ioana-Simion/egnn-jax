@@ -145,7 +145,7 @@ From reproducing the experiments, we obtain the following results:
     <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=5><b>Table 1.</b> Reproduction results from [5, 7] and comparison with DEMETAr.</td>
+    <td colspan=6><b>Table 1.</b> Reproduction results from [5, 7] and comparison with DEMETAr.</td>
   </tr>
 </table>
 
@@ -203,6 +203,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left"></td>
     <td align="left"></td>
     <td align="left"></td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
@@ -211,6 +212,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">std</td>
@@ -219,6 +221,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0011</td>
     <td align="left">0.0004</td>
     <td align="left">0.0002</td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">Δ<sub>EQ</sub></td>
@@ -227,9 +230,11 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">1.9 · 10<sup>-7</sup></td>
     <td align="left">0.167</td>
     <td align="left">3.2 · 10<sup>-7</sup></td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">Velocity</td>
+    <td align="left"></td>
     <td align="left"></td>
     <td align="left"></td>
     <td align="left"></td>
@@ -243,6 +248,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.125</td>
     <td align="left">0.101</td>
     <td align="left"><b>0.075</b></td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">std</td>
@@ -251,6 +257,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.002</td>
     <td align="left">0.004</td>
     <td align="left">0.001</td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">Δ<sub>EQ</sub></td>
@@ -259,9 +266,10 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">5.0 · 10<sup>-7</sup></td>
     <td align="left">0.37</td>
     <td align="left">6.3 · 10<sup>-7</sup></td>
+    <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=8><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
+    <td colspan=7><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
   </tr>
 </table>
 
