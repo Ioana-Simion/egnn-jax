@@ -1,4 +1,4 @@
-# The contents of this file are mostly taken from:
+# The contents of this file are partially taken from:
 # https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
 # It has here been adapted into an EGNN framework.
 
@@ -152,7 +152,10 @@ class TransformerEncoder(nn.Module):
         self.layers = (
             [
                 EncoderBlock(
-                    self.input_dim, self.num_heads, self.dim_feedforward, self.dropout_prob
+                    self.input_dim,
+                    self.num_heads,
+                    self.dim_feedforward,
+                    self.dropout_prob,
                 )
                 for _ in range(self.num_layers)
             ]
@@ -289,7 +292,9 @@ class EGNNTransformer(nn.Module):
     def setup(self):
 
         # CLS token embedding
-        self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
+        self.cls_token = self.param(
+            "cls", nn.initializers.zeros, [1, 1, self.model_dim]
+        )
 
         # Node level
         self.input_dropout = nn.Dropout(self.input_dropout_prob)
