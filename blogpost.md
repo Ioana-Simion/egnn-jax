@@ -71,7 +71,7 @@ This idea of using the distances during computation forms one of the bases of ou
   </tr>
 </table>
 
-Our method of improving the aforementioned architecture would be to leverage the capabilites of transformers \[6\]. The key difference between these and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited, though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
+Our method of improving the aforementioned architecture would be to leverage the capabilites of transformers \[6\]. The key difference between them and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited, though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
 
 As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first one contains all the node features and normalized distances to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
 
