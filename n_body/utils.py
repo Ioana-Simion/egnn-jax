@@ -131,12 +131,11 @@ def NbodyGraphTransform(
         features_edges = edge_attr.shape[1]
         edge_attr = jnp.reshape(edge_attr, (batch_size, n_nodes * (n_nodes - 1), features_edges))
 
-
         targets = jnp.reshape(targets, (batch_size, n_nodes, dim_target))
 
         pos = jnp.reshape(pos, (batch_size, n_nodes, dim_target))
         vel = jnp.reshape(vel, (batch_size, n_nodes, dim_target))
-        return (nodes, edge_attr, pos, vel), targets
+        return (nodes, edge_attr, pos, vel, edge_indices), targets
 
     if model == 'egnn' or model == 'egnn_vel':
         return _to_egnn
