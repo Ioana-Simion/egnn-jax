@@ -115,7 +115,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     init_feat, _ = graph_transform_fn(next(iter(train_loader)))
     
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
-    params = model.init(jax_seed, *(init_feat+[max_num_nodes]))
+    params = model.init(jax_seed, *(init_feat+(max_num_nodes)))
     opt_state = opt_init(params)
 
     loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, task=args.task)
