@@ -55,7 +55,7 @@ $$\begin{align}
 \mathbf{m}\_{ij} = \varphi_e (\mathbf{h}\_i^l, \mathbf{h}\_j^l, ||\mathbf{x}\_i^l - \mathbf{x}\_j^l||^2, a_{ij}), & \qquad \qquad \text{(Equation 5)} \\
 x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) (\mathbf{m}\_{ij}) \varphi_x, & \qquad \qquad \text{(Equation 6)} \\
 \mathbf{m}\_{i} = \sum_{j \in \mathcal{N}\_i } \mathbf{m}\_j, & \qquad \qquad \text{(Equation 7)} \\
-\mathbf{h}\_i^{l+1} = \varphi_h (\mathbf{h}\_i^l, \mathbf{m}\_i), & \qquad \qquad \text{(Equation 8)}
+\mathbf{h}\_i^{l+1} = \varphi_h (\mathbf{h}\_i^l, \mathbf{m}\_i). & \qquad \qquad \text{(Equation 8)}
 \end{align}$$
 
 This idea of using the distances during computation forms one of the bases of our proposed transformer architecture, as it is a simple yet effective way to impose geometric equivariance within a system.
@@ -124,6 +124,7 @@ From reproducing the experiments, we obtain the following results:
       <th align="left">Task</th>
       <th align="left">EGNN</th>
       <th align="left">TorchMD-Net</th>
+      <th align="left">EGNN (Ours) </th>
       <th align="left">DEMETAr (Invariant) </th>
       <th align="left">DEMETAr</th>
   </tr>
@@ -133,11 +134,13 @@ From reproducing the experiments, we obtain the following results:
     <td align="left">20.3</td>
     <td align="left"></td>
     <td align="left"></td>
+    <td align="left"></td>
   </tr>
   <tr align="center">
-    <td align="left">N-Body (Position)</td>
+    <td align="left">N-Body (Position MSE)</td>
     <td align="left">0.0071</td>
     <td align="left">-</td>
+    <td align="left"></td>
     <td align="left"></td>
     <td align="left"></td>
   </tr>
@@ -146,7 +149,7 @@ From reproducing the experiments, we obtain the following results:
   </tr>
 </table>
 
-Here, we can see that ... .
+Here, we can see that our implementation of the EGNN is significantly better than the one from \[7\]. Meanwhile, our transformer is also better than the aforementioned baseline while also staying comparable to the one from \[5\]. Note that the results here do show that using equivariance improves performance, based on a comparison we perform with an invariant version of our transformer.
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
@@ -264,7 +267,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
 
 ## **<a name="speed">Comparison of Speed</a>**
 
-As our method is implemented using JAX, one advantage is that it is provably faster than the standard PyTorch library. This can be seen in the following graph:
+As our method is implemented using JAX, one advantage is that it is faster than the standard PyTorch library. To show this, we compare the forward pass times of an existing implementation in PyTorch with our implementation. The results of which can be seen in the following graph:
 
 <!-- <table align="center">
   <tr align="center">
@@ -275,18 +278,22 @@ As our method is implemented using JAX, one advantage is that it is provably fas
   </tr>
 </table> -->
 
-Furthermore, having the implementation be fully in JAX allows it to benefit from JIT, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
+Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
 
 ## **Concluding Remarks**
 
-Based on the above, it can be concluded that our method is comparable to other methods that have already been developed in the field.
+Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is quite effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and domain-specific inductive biases.
+
+The reproduction of experiments on the QM9 and N-body datasets validates the effectiveness of DEMETAr, with our results demonstrating competitive performance with existing state-of-the-art methods and even outperforming many recent implementations in both invariant and equivariant tasks. Furthermore, the implementation of DEMETAr in JAX offers considerable advantages in terms of speed and numerical stability. Our comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
+
+In summary, DEMETAr provides a robust framework for incorporating equivariance into transformer architectures. The dual encoder approach we introduce not only preserves geometric information but also offers flexibility in input processing, leading to improved performance across various benchmark tasks. The comprehensive evaluation and competitive results highlight its potential in use for related tasks.
 
 ## **Authors' Contributions**
 
 - Ioana: Code implementation and debugging, running the code for results, creating the figures.
 - Stefan: Code and dataloader implementation and debugging, coming up with the ideas and formulae.
-- Jonas: Code implementation and debugging, proposal writing, comparing implementations and searching for ideas running the code for results.
+- Jonas: Code implementation and debugging, proposal writing, comparing implementations and searching for ideas, running the code for results.
 - Gregory: Code documentation, dependency setup, assisting with comparing implementations and searching for ideas, blogpost writing.
 - Thies: Equivariance test writing, proposal writing, coordinating the group.
 
