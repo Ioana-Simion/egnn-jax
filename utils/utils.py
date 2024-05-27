@@ -209,7 +209,7 @@ def get_loaders_and_statistics(
             val_loader = DataLoader(
                 dataset[num_train : num_train + num_val],
                 batch_size=args.batch_size,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
                 num_workers=4
@@ -217,7 +217,7 @@ def get_loaders_and_statistics(
             test_loader = DataLoader(
                 dataset[num_train + num_val :],
                 batch_size=args.batch_size,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
                 num_workers=4
