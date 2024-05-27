@@ -194,6 +194,8 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">Tensor Field</th>
       <th align="left">Set Transformer</th>
       <th align="left">SE(3)-Transformer</th>
+      <th align="left">unquivariant Transformer</th>
+      <th align="left">equivariant Node only Transformer</th>
       <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
@@ -230,42 +232,6 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">1.9 · 10<sup>-7</sup></td>
     <td align="left">0.167</td>
     <td align="left">3.2 · 10<sup>-7</sup></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">Velocity</td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">MSE<sub>v</sub></td>
-    <td align="left">0.261</td>
-    <td align="left">0.246</td>
-    <td align="left">0.125</td>
-    <td align="left">0.101</td>
-    <td align="left"><b>0.075</b></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">std</td>
-    <td align="left">-</td>
-    <td align="left">0.017</td>
-    <td align="left">0.002</td>
-    <td align="left">0.004</td>
-    <td align="left">0.001</td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">Δ<sub>EQ</sub></td>
-    <td align="left">-</td>
-    <td align="left">1.11</td>
-    <td align="left">5.0 · 10<sup>-7</sup></td>
-    <td align="left">0.37</td>
-    <td align="left">6.3 · 10<sup>-7</sup></td>
     <td align="left"></td>
   </tr>
   <tr align="left">
