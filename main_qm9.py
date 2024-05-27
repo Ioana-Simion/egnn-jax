@@ -1,3 +1,6 @@
+import torch.multiprocessing as multiprocessing
+multiprocessing.set_start_method('spawn')
+
 import os
 import jax
 import jraph
