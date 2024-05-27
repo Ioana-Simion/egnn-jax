@@ -2,7 +2,7 @@
 
 import jax.numpy as jnp
 from typing import Callable, Dict, List, Tuple
-
+from models.utils import mask_from_edges
 
 def get_velocity_attr(loc, vel, rows, cols):
 
@@ -34,6 +34,18 @@ def NbodyGraphTransform(
             if i != j
         ]
     ).T
+
+    batched_edge_indices = jnp.stack(
+        [jnp.array(
+            [
+                (i, j)
+                for i in range(n_nodes)
+                for j in range(n_nodes)
+                if i != j
+            ]
+        ).T 
+        for _ in range(batch_size)]
+    )  # Shape: (batch_size, 2, n_edges)
 
     def _to_egnn(
         data: List,
@@ -112,6 +124,7 @@ def NbodyGraphTransform(
         cur_batch = int(pos.shape[0] / n_nodes)
 
         edge_indices = full_edge_indices[:, : n_nodes * (n_nodes - 1) * cur_batch]
+        cross_mask = mask_from_edges(batched_edge_indices, n_nodes, n_nodes * (n_nodes - 1))
         rows, cols = edge_indices[0], edge_indices[1]
 
         vel_attr = get_velocity_attr(pos, vel, rows, cols)
@@ -135,7 +148,7 @@ def NbodyGraphTransform(
 
         pos = jnp.reshape(pos, (batch_size, n_nodes, dim_target))
         vel = jnp.reshape(vel, (batch_size, n_nodes, dim_target))
-        return (nodes, edge_attr, pos, vel, edge_indices), targets
+        return (nodes, edge_attr, pos, vel, cross_mask), targets
 
     if model == 'egnn' or model == 'egnn_vel':
         return _to_egnn
