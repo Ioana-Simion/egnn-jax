@@ -148,7 +148,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         writer.add_scalar('AvgLoss/train', train_loss, epoch)
 
         if epoch % args.val_freq == 0:
-            val_loss = eval_fn(val_loader, params)
+            val_loss = eval_fn(val_loader, params, max_num_nodes)
             val_scores.append(float(jax.device_get(val_loss)))
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
 
@@ -156,7 +156,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 print("\t   (New best performance, saving model...)")
                 save_model(params, checkpoint_path, model_name)
                 best_val_epoch = epoch
-                test_loss = eval_fn(test_loader, params)
+                test_loss = eval_fn(test_loader, params, max_num_nodes)
                 jax.clear_caches()
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_scores[best_val_epoch]:.6f}, "
