@@ -41,6 +41,7 @@ To perform the experiments, simply run the following lines:
 ```sh
 
 python main_qm9.py
+python transformer_trainer.py
 
 ```
 
@@ -68,6 +69,7 @@ You can adjust the process using the following parameters:
 ```sh
 
 python main_nbody.py
+python nbody_transformer_trainer.py
 
 ```
 
