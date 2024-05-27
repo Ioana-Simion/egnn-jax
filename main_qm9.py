@@ -133,14 +133,15 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             x, pos, edge_index, edge_attr, node_mask = feat
             #node_mask = create_padding_mask(h, x, edges, edge_attr)
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
-            train_loss += loss.item()
+            loss_item = float(jax.device_get(loss))
+            train_loss += loss_item
 
             # Manually trigger garbage collection
             gc.collect()
             jax.clear_caches()
 
         train_loss /= len(train_loader)
-        train_scores.append(float(jax.device_get(train_loss)))
+        train_scores.append(train_loss)
         writer.add_scalar('Loss/train', train_loss, epoch)
 
         if epoch % args.val_freq == 0:
