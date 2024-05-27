@@ -276,7 +276,6 @@ class EGNNTransformer(nn.Module):
     model_dim: int = 128
     num_heads: int = 8
     dropout_prob: float = 0.0
-    output_dim: int = 3
 
     input_dropout_prob: float = 0.0
 
@@ -306,7 +305,7 @@ class EGNNTransformer(nn.Module):
         )
 
         # Output classifier
-        self.output_net = nn.Dense(self.output_dim)
+        self.output_net = nn.Dense(3 if self.predict_pos else 1)
 
         if not self.node_only:
             self.input_layer_edges = nn.Dense(self.model_dim)
@@ -364,7 +363,7 @@ class EGNNTransformer(nn.Module):
             else:
                 edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
             node_encoded = node_encoded + edge_enrichment
-
+            
             # Combined Encoder
             node_encoded = self.combined_encoder(
                 node_encoded, mask=None, train=train
