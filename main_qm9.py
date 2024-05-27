@@ -71,7 +71,7 @@ def create_padding_mask(h, x, edges, edge_attr):
 
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training"])
-def l1_loss(params, h, edge_attr, edge_index, pos, target, model_fn, meann, mad, training=True, task="graph"):
+def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, target, model_fn, meann, mad, training=True, task="graph"):
     pred = model_fn(params, h, pos, edge_index, edge_attr)[0]
     #target = normalize(target, meann, mad) if training else target
     #pred = normalize(pred, meann, mad) if training else pred
@@ -87,9 +87,9 @@ def evaluate(loader, params, loss_fn, graph_transform, meann, mad, task="graph")
     eval_loss = 0.0
     for data in tqdm(loader, desc="Evaluating", leave=False):
         feat, target = graph_transform(data)
-        h, x, edges, edge_attr = feat
+        h, x, edges, edge_attr, node_mask = feat
         node_mask = create_padding_mask(h, x, edges, edge_attr)
-        loss = loss_fn(params, feat, target, node_mask=node_mask, meann=meann, mad=mad, training=False)
+        loss = loss_fn(params, h, edge_attr, edges, x, target, node_mask=node_mask, meann=meann, mad=mad, training=False)
         eval_loss += loss
     return eval_loss / len(loader)
 
@@ -105,7 +105,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     init_feat, _ = graph_transform_fn(next(iter(train_loader)))
     
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
-    params = model.init(jax_seed, *init_feat)
+    params = model.init(jax_seed, *init_feat[:-1])
     opt_state = opt_init(params)
 
     loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, task=args.task)
@@ -120,7 +120,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform_fn(batch)
-            x, edge_attr, edge_index, pos = feat
+            x, pos, edge_index, edge_attr, node_mask = feat
             #node_mask = create_padding_mask(h, x, edges, edge_attr)
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, target=target, opt_state=opt_state)
             train_loss += loss
