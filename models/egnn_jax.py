@@ -41,7 +41,7 @@ class E_GCL(nn.Module):
 
     def node_model(self, edge_index, edge_attr, x):
         row, col = edge_index
-        agg = unsorted_segment_sum(edge_attr, row, num_segments=x.shape[0]+1)
+        agg = unsorted_segment_sum(edge_attr, row, num_segments=x.shape[0])
 
         node_mlp = nn.Sequential(
             [nn.Dense(self.hidden_nf), self.act_fn, nn.Dense(self.hidden_nf)]
