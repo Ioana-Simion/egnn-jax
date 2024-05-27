@@ -204,6 +204,7 @@ def get_loaders_and_statistics(
                 drop_last=True,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
+                num_workers=4
             )
             val_loader = DataLoader(
                 dataset[num_train : num_train + num_val],
@@ -211,6 +212,7 @@ def get_loaders_and_statistics(
                 drop_last=True,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
+                num_workers=4
             )
             test_loader = DataLoader(
                 dataset[num_train + num_val :],
@@ -218,6 +220,7 @@ def get_loaders_and_statistics(
                 drop_last=True,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
+                num_workers=4
             )
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
