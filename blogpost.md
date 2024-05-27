@@ -114,17 +114,11 @@ where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternat
 
 Similarly to how the equivariant EGNN in \[5\] is made equivariant, we also introduce as a lest step a calculation where we preidct $\delta x$. We implemented two versions: One that calculates the position update and one version that takes velocity into account. 
 
-$$\begin{align} 
-x^{update} &= x^{input} + (x^{input}-x^{center})\Phi(??????), \qquad \qquad \text{(Equation 12)}\\
-
-Equivariance Proof: Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????)\\
-                                   \\
-                                   &=Qx_i^{update}+g
-\end{align}$$
-
+Equivariance Proof:\\
 $$\begin{align} 
 Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????), & \qquad \qquad \text{(Equation 2)} \\
 &=Q(x_i^{input}+(x_i^{input}-x^{center})\Phi(???????))+g\\
+&=Qx_i^{update}+g
 \end{align}$$
 
 Our dual encoder system is equivariant is through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, the attention mechanism in our transformers uses adjacency masking to ensure that attention is only paid to connected nodes and edges, which inherently respects the graph structure and maintains the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
