@@ -96,10 +96,10 @@ def train_model(args, model, model_name, checkpoint_path):
     ) = get_loaders_and_statistics(args, transformer=True)
 
 
-    init_edge_attr, init_node_attr, _, _, _, _ = next(iter(train_loader))
+    init_node_attr, init_edge_attr, edge_attn_mask, x, y = next(iter(train_loader))
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     rng, init_rng = jax.random.split(jax_seed)
-    params = model.init(init_rng, edge_inputs=init_edge_attr, node_inputs=init_node_attr)['params']
+    params = model.init(init_rng, init_node_attr, init_edge_attr, coords=None, vel=None)['params']
     opt_state = opt_init(params)
 
     train_scores = []
@@ -109,7 +109,7 @@ def train_model(args, model, model_name, checkpoint_path):
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            edge_attr, node_attr, _, _, _, target = batch
+            init_node_attr, init_edge_attr, edge_attn_mask, x, target = batch
             target = jnp.array(target)
 
             # Handle nan and inf values

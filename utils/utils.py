@@ -14,7 +14,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch_geometric.loader import DataLoader as GDataLoader
 import torch.nn.functional as F
 from argparse import Namespace
-from models.utils import mask_from_edges
+from models.utils import batched_mask_from_edges    
 
 
 class NodeDistance:
@@ -60,7 +60,16 @@ def get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges):
         # Normalize target
         y = torch.stack([normalize(d.y, meann, mad) for d in data_list]).squeeze(1)
 
-        edge_attn_mask = mask_from_edges([d.edge_index for d in data_list], max_num_nodes, max_num_edges)
+        edge_index = []
+        start_idx = 0
+        for d in data_list:
+            num_edges = d.edge_index.size(1)
+            padded_edges = torch.cat([d.edge_index, torch.full((2, max_num_edges - num_edges), -1)], dim=1)
+            padded_edges = torch.where(padded_edges != -1, padded_edges + start_idx, padded_edges)
+            edge_index.append(padded_edges)
+            start_idx += num_edges
+        edge_index = torch.stack(edge_index).transpose(0, 1).reshape(2, -1)
+        edge_attn_mask = batched_mask_from_edges(edge_index, max_num_nodes, max_num_edges)
 
         edge_attr = [d.edge_attr for d in data_list]
         edge_attr[0] = torch.cat([edge_attr[0], torch.zeros(max_num_edges - edge_attr[0].size(0), edge_attr[0].size(1))], dim=0)
@@ -161,8 +170,16 @@ def get_model(args: Namespace) -> nn.Module:
     """Return model based on name."""
     if args.dataset == "qm9":
         num_out = 1
+        predict_pos = False
+        velocity = False
+        n_nodes = 1
+        node_only = False
     elif args.dataset == "charged":
         num_out = 3
+        predict_pos = True
+        velocity = True
+        n_nodes = 5
+        node_only = False
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -174,19 +191,34 @@ def get_model(args: Namespace) -> nn.Module:
             out_node_nf=num_out,
             n_layers=args.num_layers,
         )
-    elif args.model_name == 'transformer':
+    elif args.model_name == "egnn_vel":
+        from models.egnn_jax import EGNN_vel
+
+        model = EGNN_vel(
+            hidden_nf=args.num_hidden,
+            out_node_nf=num_out,
+            n_layers=args.num_layers)
+
+    elif args.model_name == "transformer" or args.model_name == "invariant_transformer":
         from models.transformer import EGNNTransformer
+
+        if args.model_name == "invariant_transformer":
+            invariance = True
+        else:
+            invariance = False
 
         model = EGNNTransformer(
             num_edge_encoder_blocks=args.num_edge_encoders,
             num_node_encoder_blocks=args.num_node_encoders,
             num_combined_encoder_blocks= args.num_combined_encoder_blocks,
-
             model_dim=args.dim,
             num_heads=args.heads,
             dropout_prob=args.dropout,
-            edge_input_dim= args.edge_input_dim,
-            node_input_dim= args.node_input_dim,
+            predict_pos=predict_pos,
+            n_nodes=n_nodes,
+            velocity=velocity,
+            node_only=node_only,
+            invariant_pos=invariance,
         )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")
@@ -213,9 +245,11 @@ def get_loaders_and_statistics(
             num_val = (len(dataset) - num_train) // 2
             num_test = len(dataset) - num_train - num_val
 
-            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
-            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
-            test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn)
+            collate_fn_egnn_transformer = get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges)
+
+            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn_egnn_transformer)
+            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn_egnn_transformer)
+            test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn_egnn_transformer)
 
         else:
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
@@ -236,7 +270,6 @@ def get_loaders_and_statistics(
                 drop_last=True,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
-                num_workers=2
             )
             val_loader = DataLoader(
                 dataset[num_train : num_train + num_val],
@@ -244,7 +277,6 @@ def get_loaders_and_statistics(
                 drop_last=False,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
-                num_workers=2
             )
             test_loader = DataLoader(
                 dataset[num_train + num_val :],
@@ -252,7 +284,6 @@ def get_loaders_and_statistics(
                 drop_last=False,
                 pin_memory=True,
                 collate_fn=collate_fn_egnn,
-                num_workers=2
             )
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)

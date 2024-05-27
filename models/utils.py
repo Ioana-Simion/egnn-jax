@@ -1,10 +1,9 @@
-# The contents of this file are mostly taken from:
-# https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
-
 import jax.numpy as jnp
 import flax.linen as nn
+from jax import vmap
 
-
+# This function is taken from:
+# https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
 def scaled_dot_product(q, k, v, mask=None):
 
     d_k = jnp.array(q.shape[-1])
@@ -18,13 +17,28 @@ def scaled_dot_product(q, k, v, mask=None):
 
     return values, attention
 
-def mask_from_edges(edge_index, num_nodes, num_edges):
-    mask = jnp.zeros((edge_index.shape[0], num_nodes, num_edges))
-    row, col = edge_index.transpose(1, 0)
-    # (0,2), (1, 1)
-    mask = mask.at[row, jnp.tile(jnp.arange(num_edges).astype(jnp.int32), (edge_index.shape[0], 1))].set(1)
-    mask = mask.at[col, jnp.tile(jnp.arange(num_edges).astype(jnp.int32), (edge_index.shape[0], 1))].set(1)
-    return mask
+def mask_from_edges():
+    def _mask_from_edges(edge_index, num_nodes, num_edges):
+        mask = jnp.zeros((num_nodes, num_edges))
+        row, col = edge_index
+
+        # Find valid (non-padding) indices
+        valid_row_mask = (row != -1)
+        valid_col_mask = (col != -1)
+        
+        valid_rows = jnp.where(valid_row_mask, row, 0)
+        valid_cols = jnp.where(valid_col_mask, col, 0)
+
+        # Set -inf for valid edges
+        mask = mask.at[valid_rows, jnp.arange(num_edges).astype(jnp.int32)].set(-jnp.inf * valid_row_mask)
+        mask = mask.at[valid_cols, jnp.arange(num_edges).astype(jnp.int32)].set(-jnp.inf * valid_col_mask)
+        is_neg_inf = jnp.isneginf(mask)
+        mask = jnp.where(is_neg_inf, 0.0, -jnp.inf)
+        return mask
+    return vmap(_mask_from_edges, in_axes=(0, None, None))
+
+batched_mask_from_edges = mask_from_edges()
+
 
 # Helper function to support different mask shapes.
 # Output shape supports (batch_size, number of heads, seq length, seq length)
