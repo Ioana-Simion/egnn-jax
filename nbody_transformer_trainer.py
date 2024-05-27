@@ -13,7 +13,7 @@ from functools import partial
 from n_body.utils import NbodyGraphTransform
 from qm9.utils import GraphTransform
 from flax.training import checkpoints
-from utils.utils import get_model, get_loaders, set_seed
+from utils.utils import get_model, get_loaders_and_statistics, set_seed
 
 
 # Seeding
@@ -73,7 +73,7 @@ def evaluate(loader, params, rng, model_fn):
 
 
 def train_model(args, model, model_name, graph_transform, checkpoint_path):
-    train_loader, val_loader, test_loader = get_loaders(args, transformer=True)
+    train_loader, val_loader, test_loader = get_loaders_and_statistics(args, transformer=True)
 
     init_feat, _ = graph_transform(next(iter(train_loader)))
     opt_init, opt_update = optax.adamw(

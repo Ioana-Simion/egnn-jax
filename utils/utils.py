@@ -249,6 +249,7 @@ def get_loaders_and_statistics(
             )
     elif args.dataset == "charged":
         train_loader, val_loader, test_loader = get_nbody_dataloaders(args)
+        return train_loader, val_loader, test_loader
     else:
         raise ValueError(f"Dataset {args.dataset} not recognized.")
 
