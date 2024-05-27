@@ -126,6 +126,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     val_scores = []
     test_loss, best_val_epoch = 0, 0
 
+    global_step = 0
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
@@ -135,11 +136,12 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
             loss_item = float(jax.device_get(loss))
             train_loss += loss_item
-            writer.add_scalar('Loss/train', loss_item)
+            writer.add_scalar('Loss/train', loss_item, global_step=global_step)
 
             # Manually trigger garbage collection
             gc.collect()
             jax.clear_caches()
+            global_step += 1
 
         train_loss /= len(train_loader)
         train_scores.append(train_loss)
@@ -160,6 +162,9 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_scores[best_val_epoch]:.6f}, "
           f"Validation loss: {val_scores[best_val_epoch]:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
     
+    writer.flush()
+    writer.close()
+
     results = {
         "test_mae": float(jax.device_get(test_loss)),
         "val_scores": [float(val) for val in val_scores],
