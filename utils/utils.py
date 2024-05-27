@@ -58,7 +58,7 @@ def get_collate_fn_egnn(dataset, meann, mad, max_num_nodes, max_num_edges):
         x = x.reshape(x.shape[0] * x.shape[1], -1)
         
         # Normalize target
-        y = torch.stack([normalize(d.y, meann, mad) for d in data_list])
+        y = torch.stack([normalize(d.y, meann, mad) for d in data_list]).squeeze(1)
 
         edge_index = []
         start_idx = 0
