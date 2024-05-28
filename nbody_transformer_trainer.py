@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from functools import partial
 
-from n_body.utils import NbodyGraphTransform
+from n_body.utils import NbodyBatchTransform
 from qm9.utils import GraphTransform
 from flax.training import checkpoints
 from utils.utils import get_model, get_loaders_and_statistics, set_seed
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     parsed_args = parser.parse_args()
 
     set_seed(parsed_args.seed)
-    graph_transform = NbodyGraphTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
+    graph_transform = NbodyBatchTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
     model = get_model(parsed_args)
 
     train_model(parsed_args, model, parsed_args.model_name, graph_transform, "assets")

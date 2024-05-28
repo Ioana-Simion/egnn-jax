@@ -11,14 +11,14 @@ def xavier_init(gain):
     return init
 
 
-class E_GCL_vel(nn.Module):
+class E_GCL(nn.Module):
     """
     E(n) Equivariant Message Passing Layer
     """
 
     hidden_nf: int
     act_fn: callable
-    residual: bool
+    velocity: bool = False
 
     def edge_model(self, edge_index, h, coord, edge_attr):
 
@@ -71,6 +71,12 @@ class E_GCL_vel(nn.Module):
         coord = coord + agg
         return coord
 
+    def coord2radial(self, edge_index, coord):
+        senders, receivers = edge_index
+        coord_i, coord_j = coord[senders], coord[receivers]
+        distance = jnp.sum((coord_i - coord_j) ** 2, axis=1, keepdims=True)
+        return distance
+
     def coord_vel_model(self, coord, h, vel):
         coord_mlp_vel = nn.Sequential([
             nn.Dense(self.hidden_nf),
@@ -80,92 +86,13 @@ class E_GCL_vel(nn.Module):
         coord += coord_mlp_vel(h) * vel
         return coord
 
-    def coord2radial(self, edge_index, coord):
-        senders, receivers = edge_index
-        coord_i, coord_j = coord[senders], coord[receivers]
-        distance = jnp.sum((coord_i - coord_j) ** 2, axis=1, keepdims=True)
-        return distance
-
     @nn.compact
-    def __call__(self, h, edge_index, coord, vel, edge_attr=None):
+    def __call__(self, h, edge_index, coord, vel=None, edge_attr=None):
         m_ij = self.edge_model(edge_index, h, coord, edge_attr)
         h, agg = self.node_model(edge_index, m_ij, h)
         coord = self.coord_model(edge_index, m_ij, coord)
-        coord = self.coord_vel_model(coord, h, vel)
-        return h, coord, m_ij
-
-
-class E_GCL(nn.Module):
-    """
-    E(n) Equivariant Message Passing Layer
-    """
-
-    hidden_nf: int
-    act_fn: callable
-    residual: bool
-
-    def edge_model(self, edge_index, h, coord, edge_attr):
-        #edge_attr of shape bs * max_num_edges, dim
-        row, col = edge_index
-        source, target = h[row], h[col] # bs*max_num_edges, dim | bs*max_num_edges, dim
-        radial = self.coord2radial(edge_index, coord) # bs*max_num_edges, 1
-
-        edge_mlp = nn.Sequential(
-            [
-                nn.Dense(self.hidden_nf),
-                self.act_fn,
-                nn.Dense(self.hidden_nf),
-                self.act_fn,
-            ]
-        )
-
-        out = jnp.concatenate([source, target, radial, edge_attr], axis=1)
-
-        return edge_mlp(out) # bs*max_num_edges, hidden_nf
-
-    def node_model(self, edge_index, edge_attr, x):
-        row, col = edge_index
-        agg = unsorted_segment_sum(edge_attr, row, num_segments=x.shape[0])
-
-        node_mlp = nn.Sequential(
-            [nn.Dense(self.hidden_nf), self.act_fn, nn.Dense(self.hidden_nf)]
-        )
-
-        agg = jnp.concatenate([x, agg], axis=1)
-        out = node_mlp(agg)
-
-        # TODO do we need to add x to out? to update it
-        return out, agg
-
-    def coord_model(self, edge_index, edge_feat, coord):
-        row, col = edge_index
-        coord_mlp = nn.Sequential(
-            [
-                nn.Dense(self.hidden_nf),
-                self.act_fn,
-                nn.Dense(1, kernel_init=xavier_init(gain=0.001)),
-            ]
-        )
-
-        coord_out = coord_mlp(edge_feat) # bs*max_num_edges, 1
-        trans = (coord[row] - coord[col]) * coord_out # bs*max_num_edges, 3
-
-        agg = unsorted_segment_mean(trans, row, num_segments=coord.shape[0]) # bs*max_num_nodes, 3; nodes, not edges!!
-
-        coord = coord + agg
-        return coord
-
-    def coord2radial(self, edge_index, coord):
-        senders, receivers = edge_index
-        coord_i, coord_j = coord[senders], coord[receivers]
-        distance = jnp.sum((coord_i - coord_j) ** 2, axis=1, keepdims=True)
-        return distance
-
-    @nn.compact
-    def __call__(self, h, edge_index, coord, edge_attr=None):
-        m_ij = self.edge_model(edge_index, h, coord, edge_attr)
-        h, agg = self.node_model(edge_index, m_ij, h)
-        coord = self.coord_model(edge_index, m_ij, coord)
+        if self.velocity:
+            coord = self.coord_vel_model(coord, h, vel)
         return h, coord, m_ij
 
 
@@ -174,14 +101,14 @@ class EGNN_equiv(nn.Module):
     out_node_nf: int
     act_fn: callable = nn.silu  # default activation function
     n_layers: int = 4
-    residual: bool = True
+    velocity: bool = False
 
     @nn.compact
-    def __call__(self, h, x, edges, _, edge_attr):
+    def __call__(self, h, x, edges, vel, edge_attr):
         h = nn.Dense(self.hidden_nf)(h)
         for i in range(self.n_layers):
-            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
-                h, edges, x, edge_attr=edge_attr)
+            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn, velocity=self.velocity)(
+                h, edges, x, vel, edge_attr=edge_attr)
         h = nn.Dense(self.out_node_nf)(h)
         return h, x
 
@@ -191,36 +118,18 @@ class EGNN_QM9(nn.Module):
     out_node_nf: int
     act_fn: callable = nn.silu  # default activation function
     n_layers: int = 4
-    residual: bool = True
 
     @nn.compact
     def __call__(self, h, x, edges, edge_attr, node_mask, n_nodes):
         h = nn.Dense(self.hidden_nf)(h)
         for i in range(self.n_layers):
-            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
+            h, x, _ = E_GCL(self.hidden_nf, act_fn=self.act_fn)(
                 h, edges, x, edge_attr=edge_attr)
 
         h = h * node_mask[:, None]
         h = h.reshape(-1, n_nodes, self.hidden_nf)
         h = jnp.sum(h, axis=1)
         h = nn.Dense(self.out_node_nf)(h)
-        return h, x
-
-
-class EGNN_vel(nn.Module):
-    hidden_nf: int
-    out_node_nf: int
-    act_fn: callable = nn.silu  # default activation function
-    n_layers: int = 4
-    residual: bool = True
-
-    @nn.compact
-    def __call__(self, h, x, edges, vel, edge_attr):
-        h = nn.Dense(self.hidden_nf)(h)
-        for i in range(self.n_layers):
-            h, x, _ = E_GCL_vel(self.hidden_nf, act_fn=self.act_fn, residual=self.residual)(
-                h, edges, x, vel, edge_attr=edge_attr
-            )
         return h, x
 
 

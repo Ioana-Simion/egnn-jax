@@ -17,11 +17,11 @@ This blogpost serves three purposes:
 
 As equivariance is prevalent in the natural sciences \[1, 2, 3, 11, 17\], it makes sense to utilize them for our neural networks, especially given the evidence suggesting that it significantly improves performance through increasing the network's generalizability \[8\]. One large area within this subfield of deep learning is learning 3D translation and rotation symmetries, where various techniques have been created such as Graph Convolutional Neural Networks \[9\] and Tensor Field Networks \[10\].
 
-Following these works, more efficient implementations have emerged, with the first being the Equivariant Graph Neural Network (EGNN) \[5\]. Based on the GNN \[4, 15, 16\], which follows a message passing scheme, it innovates by inputting the relative squared distance between two coordinates into the edge operation. This specific method bypasses any expensive computations/approximations relative to other, similar methods while retaining high performance levels, making it preferable compared to most other GNN architectures.
+Following these works, more efficient implementations have emerged, with the first being the Equivariant Graph Neural Network (EGNN) \[5\]. Based on the GNN \[4, 15, 16\], which follows a message passing scheme, it innovates by inputting the relative squared distance between two coordinates into the edge operation and to make the output equivariant, updates the coordinates of the nodes per layer. This specific method bypasses any expensive computations/approximations relative to other, similar methods while retaining high performance levels, making it preferable compared to most other GNN architectures.
 
 More recently, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness for tackling such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches.
 
-Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, after which combined to a common embedding space. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
+Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, which are afterwards combined to a common embedding space. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
 
 
 ## **<a name="recap">Recap of Equivariance</a>**
@@ -60,7 +60,7 @@ x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) (\math
 
 This idea of using the distances during computation forms one of the bases of our proposed transformer architecture, as it is a simple yet effective way to impose geometric equivariance within a system.
 
-## **<a name="architecture">Equivariant Transformers</a>**
+## **<a name="architecture">Equivariant Transformer</a>**
 
 <table align="center">
   <tr align="center">
@@ -73,12 +73,14 @@ This idea of using the distances during computation forms one of the bases of ou
 
 Our method of improving the aforementioned architecture would be to leverage the capabilites of transformers \[6\]. The key difference between them and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited, though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
 
-As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first one contains all the node features and normalized distances of each node to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
+As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first encoder contains all the node features and normalized distances of each node to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
 
 Formally a feature vector for a single node $n$ looks like this:
+
 $$\begin{align} 
 F_n = [f_n^{(0)}, ..., f_n^{(s)}, ||x_n-x_{COM}||]
 \end{align}$$
+
 where $s$ is the number of node features, $x_i$ is the position of node $i$ and $x_{COM}$ is the center of mass position.
 
 To explain this approach, we first need to define the following components:
@@ -124,6 +126,16 @@ Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????)\\
 
 Our dual encoder system is equivariant is through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, the attention mechanism in our transformers uses adjacency masking to ensure that attention is only paid to connected nodes and edges, which inherently respects the graph structure and maintains the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
 
+### **Experiments**
+
+#### N-body dataset
+
+In this dataset, a dynamical system consisting of 5 atoms is modeled in 3D space. Each atom has a positive and negative charge, a starting position and a starting velocity. The task is to predict the position of the particles after 1000 time steps. The movement of the particles follow the rules of physics: Same charges repel and different charges attract. The task is equivariant in the sense, that translating and rotating the 5-body system on the input space is the same as rotating the output space.
+
+#### QM9 dataset
+
+This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule.
+
 
 ## **<a name="architecture">Evaluating the Models</a>**
 
@@ -133,39 +145,30 @@ For all the aforementioned methods except TorchMD-Net (due to time constraints),
 
 ## **<a name="reproduction">Reproduction of the Experiments</a>**
 
-From reproducing the experiments, we obtain the following results:
+To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in Jax, to make use of Jax's faster just-in-time (jit) compilation.
 
 <table align="center">
   <tr align="center">
       <th align="left">Task</th>
       <th align="left">EGNN</th>
-      <th align="left">TorchMD-Net</th>
       <th align="left">EGNN (Ours) </th>
-      <th align="left">DEMETAr (Invariant) </th>
-      <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
     <td align="left"> QM9 (ε<sub>HOMO</sub>) (meV)</td>
     <td align="left">29</td>
-    <td align="left">20.3</td>
-    <td align="left"></td>
-    <td align="left"></td>
     <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">N-Body (Position MSE)</td>
     <td align="left">0.0071</td>
-    <td align="left">-</td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
+    <td align="left">0.0025</td>
   </tr>
   <tr align="left">
-    <td colspan=6><b>Table 1.</b> Reproduction results from [5, 7] and comparison with DEMETAr.</td>
+    <td colspan=6><b>Table 1.</b> Reproduction results comparing [5] with our Jax implementation.</td>
   </tr>
 </table>
 
-Here, we can see that our implementation of the EGNN is significantly better than the one from \[7\]. Meanwhile, our transformer is also better than the aforementioned baseline while also staying comparable to the one from \[5\]. Note that the results here do show that using equivariance improves performance, based on a comparison we perform with an invariant version of our transformer.
+Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
@@ -244,6 +247,30 @@ As our method is implemented using JAX, one advantage is that it is faster than 
 </table> -->
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
+
+## **<a name="architecture">Ablation studies</a>**
+
+### Comparison of different Equivariances on the N-body dataset.
+
+For this comparison, we compare 3 different transformer architectures. One architecture is a standard transformer (not equivariant), that uses the positions as input to predict the final positions. Furthermore we have 2 equivariant transformers: One that is translation equivariant and one that is translation and rotation equivariant.
+
+<table align="center">
+  <tr align="center">
+      <th align="left"></th>
+      <th align="left">standard Transformer</th>
+      <th align="left">translation equivariant Transformer</th>
+      <th align="left">translation rotation equivariant Transformer</th>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>x</sub></td>
+    <td align="left">0.0691</td>
+    <td align="left">0.0639</td>
+    <td align="left">0.0151</td>
+  </tr>
+  <tr align="left">
+    <td colspan=9><b>Table 3.</b> Comparison of different equivariances on the N-body dataset.</td>
+  </tr>
+</table>
 
 
 ## **Concluding Remarks**
