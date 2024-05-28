@@ -46,7 +46,7 @@ def update(params, edge_attr, node_attr, cross_mask, target, opt_state, rng, mod
 def mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn):
     variables = {'params': params}
     rngs = {'dropout': dropout_rng}
-    pred = model_fn(variables, edge_attr, node_attr, cross_mask=cross_mask, train=True, rngs=rngs)
+    pred = model_fn(variables, edge_attr, node_attr, None, None, cross_mask=cross_mask, train=True, rngs=rngs)
 
     return jnp.mean((pred - target) ** 2)
 
