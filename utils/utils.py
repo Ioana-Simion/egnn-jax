@@ -147,7 +147,6 @@ def get_model(args: Namespace) -> nn.Module:
     if args.model_name == "egnn" or args.model_name == "egnn_vel":
         from models.egnn_jax import EGNN_equiv
 
-
         if args.model_name == "egnn_vel":
             velocity = True
         else:
