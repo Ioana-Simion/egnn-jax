@@ -226,8 +226,6 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">Tensor Field</th>
       <th align="left">Set Transformer</th>
       <th align="left">SE(3)-Transformer</th>
-      <th align="left">standard Node only Transformer</th>
-      <th align="left">equivariant Node only Transformer</th>
       <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
@@ -237,12 +235,10 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
-    <td align="left">0.109965</td>
-    <td align="left">0.011273</td> 
-    <td align="left"></td>
+    <td align="left">0.050895</td>
   </tr>
   <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
+    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, taken from [18].</td>
   </tr>
 </table>
 
@@ -287,7 +283,7 @@ Here, we compare 4 different transformer architectures. The first is a standard 
   </tr>
 </table>
 
-This table confirms that equivariant models, outperform models that do not make use of equivariance. Further, in our example where rotation and translation are important, a model that is equivariant for translation and rotation is better than a model that is only equivariant for translations. It is surprising how much better the velocity based roto-translation equivariant model is. Some equivariance approaches are more expressive than others.
+The baseline performance is the standard transformer. The bad performance highlights the need for equivariance for this task. The transformer has issues generalising, possibly to rotated and translated examples within a dataset. The second model, which is translation equivariant performs better however it is outperformed by models which are translation and rotation equivariant. By introducing roto translation equivariant models, they can fully learn the rules of the dynamical system while not being restricted to struggling with learning how rotations also influence the dynamical system. It is demonstrated, that models incorporating equivariance outperform those that do not. Furthermore we show that not all equivariant approaches are equally expressive.
 
 ### **Comparison of different Transformer Architectures**
 
@@ -313,9 +309,8 @@ Different types of architectures for the transformer are compared on the roto-tr
   </tr>
 </table>
 
-talk about edge embedding then cross attention with node encoder best
-
-Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390.
+Both Node-only encoder approaches, perform very similar, leading to the conclusion that both are able to capture the information that lies within the nodes. The best performing model, uses an embedding layer for the edge features, a node encoder built on top of a node embedding layer, both which get put into a cross attention layer. This layer enriches the node space with edge information directly, while the double encoder appraoch uses an encoder between the edge embedding and the cross attention layer.
+Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. The double encoder approach enriches the node space with information from the edge space. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390. The biggest constraint in our model development are the computational ressources, because of which only limited experiments were ran with a limited set of hyperparameters. 
 
 ## **Future Work**
 In this section we would like to outline out theoretical vision for a method closer to the EGNN method but a still transformer. Since we did not have time to execute it in practice, this is only a theoretical overview.
