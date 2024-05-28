@@ -380,9 +380,11 @@ class EGNNTransformer(nn.Module):
             if self.invariant_pos:
                 return output
             else:
+                center_mass = coords.mean(axis=1, keepdims=True)
+                distance = coords - center_mass
                 if self.velocity:
-                    return coords + output * vel
+                    return coords + vel + output * distance
                 else:
-                    return coords + output
+                    return coords + output * distance
         else:
             return self.output_net(node_encoded[:, 0])
