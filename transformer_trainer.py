@@ -14,6 +14,7 @@ import json
 from torch_geometric.datasets import QM9
 from torch.utils.data import DataLoader
 import torch_geometric.transforms as T
+from torch.utils.tensorboard import SummaryWriter
 
 # Seeding
 jax_seed = jax.random.PRNGKey(42)
@@ -106,6 +107,7 @@ def train_model(args, model, model_name, checkpoint_path):
     val_scores = []
     test_loss, best_val_epoch = 0, 0
 
+    global_step = 0
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
@@ -118,20 +120,26 @@ def train_model(args, model, model_name, checkpoint_path):
             #target = handle_nan(target)
             
             loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, cross_mask=cross_mask, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
-            train_loss += loss
+            loss_item = float(jax.device_get(loss))
+            train_loss += loss_item
+            writer.add_scalar('Loss/train', loss_item, global_step=global_step)
 
             # Manually trigger garbage collection
             gc.collect()
             jax.clear_caches()
+            
+            global_step += 1
 
         train_loss /= len(train_loader)
-        train_scores.append(float(jax.device_get(train_loss)))
+        train_scores.append(train_loss)
+        writer.add_scalar('AvgLoss/train', train_loss, global_step=global_step)
 
         if epoch % args.val_freq == 0:
             val_loss = evaluate(val_loader, params, rng, model.apply)
-            val_scores.append(float(jax.device_get(val_loss)))
-            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
-
+            val_loss_item = float(jax.device_get(val_loss))
+            val_scores.append(val_loss_item)
+            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss_item:.6f}")
+            writer.add_scalar('Loss/val', val_loss_item, global_step=global_step)
             if len(val_scores) == 1 or val_loss < min(val_scores):
                 print("\t   (New best performance, saving model...)")
                 save_model(params, checkpoint_path, model_name)
@@ -208,6 +216,8 @@ if __name__ == "__main__":
     parsed_args = parser.parse_args()
 
     set_seed(parsed_args.seed)
+    
+    writer = SummaryWriter(log_dir="runs", flush_secs=10)
 
     model = get_model(parsed_args)
     train_model(parsed_args, model, parsed_args.model_name, "assets")
