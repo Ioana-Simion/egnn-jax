@@ -35,6 +35,7 @@ conda activate egnn-transformer
 
 ## **2. Training**
 
+Example notebooks with the runs for our experiments can be found in /notebooks/
 To perform the experiments, simply run the following lines:
 
 1. For QM9:
@@ -42,8 +43,6 @@ To perform the experiments, simply run the following lines:
 
 python main_qm9.py
 python transformer_trainer.py
-
-Example notebooks with the runs for our experiments can be found in /notebooks/
 
 ```
 
