@@ -82,6 +82,11 @@ def get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges):
         
         #node_mask = torch.where(x.sum(dim=-1) == 0, 1, 0)
         #edge_mask = torch.where(edge_attr.sum(dim=-1) == 0, 1, 0)
+
+        x = jnp.array(x.numpy())
+        edge_attr = jnp.array(edge_attr.numpy())
+        pos = jnp.array(pos.numpy())
+        y = jnp.array(y.numpy())
         return x, edge_attr, edge_attn_mask, pos, y
     return _collate_fn
 

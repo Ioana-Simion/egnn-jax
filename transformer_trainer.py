@@ -8,7 +8,7 @@ from tqdm import tqdm
 from flax.training import checkpoints
 from functools import partial
 from qm9.utils import GraphTransform
-from utils.utils import get_model, set_seed, NodeDistance, RemoveNumHs, get_loaders_and_statistics
+from utils.utils import get_model, set_seed, NodeDistance, RemoveNumHs, get_loaders_and_statistics, get_property_index
 import gc
 import json
 from torch_geometric.datasets import QM9
@@ -94,6 +94,7 @@ def train_model(args, model, model_name, checkpoint_path):
         max_num_edges
     ) = get_loaders_and_statistics(args, transformer=True)
 
+    property_idx = get_property_index(args.property)
 
     init_node_attr, init_edge_attr, edge_attn_mask, x, y = next(iter(train_loader))
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
@@ -109,7 +110,7 @@ def train_model(args, model, model_name, checkpoint_path):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             node_attr, edge_attr, cross_mask, pos, target = batch
-            target = jnp.array(target)
+            target = target[:, property_idx]
 
             # Handle nan and inf values
             edge_attr = handle_nan(edge_attr)
