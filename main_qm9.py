@@ -132,6 +132,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     train_scores = []
     val_scores = []
     test_loss, best_val_epoch = 0, 0
+    best_val_loss = float('inf')
 
     global_step = 0
     for epoch in range(args.epochs):
@@ -158,19 +159,19 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             val_loss = eval_fn(val_loader, params, max_num_nodes)
             val_loss_item = float(jax.device_get(val_loss))
             val_scores.append(val_loss_item)
-            writer.add_scalar('Loss/val', train_loss, epoch)
+            writer.add_scalar('Loss/val', val_loss_item, epoch)
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
 
-            if len(val_scores) == 1 or val_loss < val_scores[best_val_epoch]:
+            if val_loss_item < best_val_loss:
                 print("\t   (New best performance, saving model...)")
+                best_val_loss = val_loss_item
                 save_model(params, checkpoint_path, model_name)
-                best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params, max_num_nodes)
                 jax.clear_caches()
 
-    print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_scores[best_val_epoch]:.6f}, "
-          f"Validation loss: {val_scores[best_val_epoch]:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
-    
+    print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, "
+          f"Validation loss: {best_val_loss:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
+
     writer.flush()
     writer.close()
 
@@ -183,17 +184,21 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     with open(_get_result_file(checkpoint_path, model_name), "w") as f:
         json.dump(results, f)
 
-    plt.plot(range(1, len(train_scores) + 1), train_scores, label="Train")
-    plt.plot(range(1, len(val_scores) + 1), val_scores, label="Val")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.ylim(min(val_scores), max(train_scores) * 1.01)
-    plt.title(f"Validation performance of {model_name}")
-    plt.legend()
-    plt.show()
-    plt.close()
+    if val_scores:
+        plt.plot(range(1, len(train_scores) + 1), train_scores, label="Train")
+        plt.plot(range(1, len(val_scores) + 1), val_scores, label="Val")
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.ylim(min(val_scores), max(train_scores) * 1.01)
+        plt.title(f"Validation performance of {model_name}")
+        plt.legend()
+        plt.show()
+        plt.close()
 
-    print(f" Test loss: {results['test_mae']:.6f} ".center(50, "=") + "\n")
+        print(f" Test loss: {results['test_mae']:.6f} ".center(50, "=") + "\n")
+    else:
+        print("No validation scores to plot.")
+
     return
 
 
@@ -204,7 +209,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=32,
+        default=1024,
         help="Batch size (number of graphs).",
     )
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
