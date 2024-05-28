@@ -134,13 +134,11 @@ def get_model(args: Namespace) -> nn.Module:
         predict_pos = False
         velocity = False
         n_nodes = 1
-        node_only = False
     elif args.dataset == "charged":
         num_out = 3
         predict_pos = True
         velocity = True
         n_nodes = 5
-        node_only = False
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -164,13 +162,9 @@ def get_model(args: Namespace) -> nn.Module:
             hidden_nf=args.num_hidden,
             out_node_nf=num_out,
             n_layers=args.num_layers)
-    elif args.model_name == "transformer" or args.model_name == "invariant_transformer":
-        from models.transformer import EGNNTransformer
+    elif args.model_name == "transformer":
 
-        if args.model_name == "invariant_transformer":
-            invariance = True
-        else:
-            invariance = False
+        from models.transformer import EGNNTransformer
 
         model = EGNNTransformer(
             num_edge_encoder_blocks=args.num_edge_encoders,
@@ -182,8 +176,8 @@ def get_model(args: Namespace) -> nn.Module:
             predict_pos=predict_pos,
             n_nodes=n_nodes,
             velocity=velocity,
-            node_only=node_only,
-            invariant_pos=invariance,
+            node_only=args.node_only,
+            equivariance=args.equivariance,
         )
     else:
         raise ValueError(f"Model type {args.model_name} not recognized.")

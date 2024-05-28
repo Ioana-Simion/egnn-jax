@@ -175,9 +175,6 @@ if __name__ == "__main__":
         "--batch_size", type=int, default=500, help="Batch size (number of graphs)."
     )
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
-    parser.add_argument(
-        "--lr-scheduling", action="store_true", help="Use learning rate scheduling"
-    )
     parser.add_argument("--weight_decay", type=float, default=1e-8, help="Weight decay")
     parser.add_argument(
         "--val_freq",
@@ -185,6 +182,7 @@ if __name__ == "__main__":
         default=1,
         help="Evaluation frequency (number of epochs)",
     )
+    parser.add_argument("--max_samples", type=int, default=3000)
 
     # Dataset parameters
     parser.add_argument(
@@ -195,10 +193,11 @@ if __name__ == "__main__":
         choices=["qm9", "charged", "gravity"],
     )
     parser.add_argument(
-        "--property",
+        "--equivariance",
         type=str,
-        default="homo",
-        help="Label to predict: alpha | gap | homo | lumo | mu | Cv | G | H | r2 | U | U0 | zpve",
+        default="translation",
+        help="type of equivariance",
+        choices=["not_equivariant", "translation", "roto_translation", "velo_roto_translation"],
     )
     parser.add_argument(
         "--nbody_name",
@@ -208,6 +207,8 @@ if __name__ == "__main__":
         choices=["nbody", "nbody_small"],
     )
     parser.add_argument('--train_from_checkpoint', action='store_true', default=False,
+                        help='Enables training form checkpoint')
+    parser.add_argument('--node_only', action='store_true', default=False,
                         help='Enables training form checkpoint')
 
     # Model parameters
@@ -233,7 +234,6 @@ if __name__ == "__main__":
         "--model_name", type=str, default="transformer", help="Model name"
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--max_samples", type=int, default=3000)
     parser.add_argument("--nbody_path", default='n_body/dataset/data/')
 
     parsed_args = parser.parse_args()
