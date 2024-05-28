@@ -19,9 +19,9 @@ As equivariance is prevalent in the natural sciences \[1, 2, 3, 11, 17\], it mak
 
 Following these works, more efficient implementations have emerged, with the first being the Equivariant Graph Neural Network (EGNN) \[5\]. Based on the GNN \[4, 15, 16\], which follows a message passing scheme, it innovates by inputting the relative squared distance between two coordinates into the edge operation. This specific method bypasses any expensive computations/approximations relative to other, similar methods while retaining high performance levels, making it preferable compared to most other GNN architectures.
 
-More recently, though, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness to such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches.
+More recently, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness for tackling such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches.
 
-Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately. This provides a novel benefit in the form of ...
+Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, after which combined to a common embedding space. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
 
 
 ## **<a name="recap">Recap of Equivariance</a>**
@@ -71,9 +71,15 @@ This idea of using the distances during computation forms one of the bases of ou
   </tr>
 </table>
 
-Our method of improving the aforementioned architecture would be to leverage the capabilites of transformers \[6\]. The key difference between these and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited, though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
+Our method of improving the aforementioned architecture would be to leverage the capabilites of transformers \[6\]. The key difference between them and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited, though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
 
-As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first one contains all the node features and normalized distances to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
+As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first one contains all the node features and normalized distances of each node to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
+
+Formally a feature vector for a single node $n$ looks like this:
+$$\begin{align} 
+F_n = [f_n^{(0)}, ..., f_n^{(s)}, ||x_n-x_{COM}||]
+\end{align}$$
+where $s$ is the number of node features, $x_i$ is the position of node $i$ and $x_{COM}$ is the center of mass position.
 
 To explain this approach, we first need to define the following components:
 
@@ -82,13 +88,13 @@ $$\begin{align}
 & K^l_n, V^l_n, Q^l_n &: \text{the keys, values of node features at layer } l.
 \end{align}$$
 
-Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the data to transform the edge features into the node space. Then, we obtain $K^p_e$, $V^p_e$ and perform the following attention operation:
+Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the edge features to get complex edge features. Then, we want to obtain "edge enrichments" of the node space $Z^p_e$, i.e edge information incorporated into the node encoder space. We obtain $K^p_e$, $V^p_e$ and perform the following attention operation:
 
 $$\begin{align} 
-Z^p_e = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}}, \qquad \qquad \text{(Equation 9)}
+Z^p_e = \frac{softmax(Q^p_n K^{pT}_e + M) V^p_e}{\sqrt{d}}, \qquad \qquad \text{(Equation 9)}
 \end{align}$$
 
-where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required here. Meanwhile, in the $p$-th layer, we limit the attention to only the connected nodes to calculate the edge features for every node in order to use the node keys. Lastly, the final division after softmaxing by the dimension size $\sqrt(d)$ is to normalize the output scale, a method employed by most other transfomer architectures.
+where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required there. Contrary to that, in the $p$-th layer, we limit the attention to only the connected nodes of each edge to calculate the edge enrichment information for every node. Lastly, the final division after softmaxing by the dimension size $\sqrt(d)$ is to normalize the output scale, a method employed by most other transfomer architectures.
 
 Now, we need to obtain the node encodings, which is done through the following: 
 
@@ -96,7 +102,7 @@ $$\begin{align}
 Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{\sqrt{d}}, \qquad \qquad \text{(Equation 10)}
 \end{align}$$
 
-where $Z^r_n$ is the output of layer $r$, which is the encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $\sqrt{d}$.
+where $Z^r_n$ is the output of layer $r$, which is the node encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $\sqrt{d}$.
 
 As we now have both the node and edge features encoded, we can simply sum these encodings to combine them together:
 
@@ -104,7 +110,7 @@ $$\begin{align}
 Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 11)}
 \end{align}$$
 
-where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. Afterwards, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token which is used for classification in the $Z^0_j$ or the $Z^0_n$ input.
+where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. Afterwards, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token in the $Z^0_j$ or the $Z^0_n$ input which is used for classification.
 
 Our dual encoder system is equivariant is through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, the attention mechanism in our transformers uses adjacency masking to ensure that attention is only paid to connected nodes and edges, which inherently respects the graph structure and maintains the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
 
@@ -199,43 +205,18 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
-    <td align="left">Position</td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
     <td align="left">0.0691</td>
     <td align="left">0.0639</td>
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">std</td>
-    <td align="left">-</td>
-    <td align="left">0.0086</td>
-    <td align="left">0.0011</td>
-    <td align="left">0.0004</td>
-    <td align="left">0.0002</td>
-    <td align="left"></td>
-  </tr>
-  <tr align="center">
-    <td align="left">Δ<sub>EQ</sub></td>
-    <td align="left">-</td>
-    <td align="left">0.038</td>
-    <td align="left">1.9 · 10<sup>-7</sup></td>
-    <td align="left">0.167</td>
-    <td align="left">3.2 · 10<sup>-7</sup></td>
+    <td align="left">0.109965</td>
+    <td align="left">0.011273</td> 
     <td align="left"></td>
   </tr>
   <tr align="left">
-    <td colspan=7><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
+    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
   </tr>
 </table>
 
