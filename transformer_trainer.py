@@ -58,8 +58,7 @@ def normalize_data(data):
 
 def handle_nan(data):
     """Replace nan and inf values with 0."""
-    data = jnp.where(jnp.isnan(data), 0.0, data)
-    data = jnp.where(jnp.isinf(data), 0.0, data)
+    data = jnp.nan_to_num(data, pos_inf=0, neg_inf=0)
     return data
 
 def evaluate(loader, params, rng, model_fn):
@@ -75,9 +74,9 @@ def evaluate(loader, params, rng, model_fn):
         target = jnp.array(target)
         
         # Handle nan and inf values
-        edge_attr = handle_nan(edge_attr)
-        node_attr = handle_nan(node_attr)
-        target = handle_nan(target)
+        #edge_attr = handle_nan(edge_attr)
+        #node_attr = handle_nan(node_attr)
+        #target = handle_nan(target)
 
         _, dropout_rng = jax.random.split(rng)
         loss = mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn)
@@ -109,7 +108,7 @@ def train_model(args, model, model_name, checkpoint_path):
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            init_node_attr, init_edge_attr, edge_attn_mask, x, target = batch
+            node_attr, edge_attr, cross_mask, pos, target = batch
             target = jnp.array(target)
 
             # Handle nan and inf values

@@ -20,7 +20,7 @@ def scaled_dot_product(q, k, v, mask=None):
 def mask_from_edges():
     def _mask_from_edges(edge_index, num_nodes, num_edges):
         mask = jnp.zeros((num_nodes, num_edges))
-        row, col = edge_index
+        row, col = edge_index[0], edge_index[1]
 
         # Find valid (non-padding) indices
         valid_row_mask = (row != -1)
