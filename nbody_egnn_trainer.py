@@ -1,9 +1,9 @@
 # jax grad process from https://github.com/gerkone/egnn-jax/blob/main/validate.py
-import math
 import os
 import jax
 import jax.numpy as jnp
 import json
+import math
 import torch
 import pickle
 import optax
@@ -14,9 +14,6 @@ from functools import partial
 from n_body.utils import NbodyBatchTransform
 from typing import Callable, Iterable
 from utils.utils import get_model, get_loaders_and_statistics, set_seed
-
-
-
 
 
 def _get_config_file(model_path, model_name):
@@ -148,9 +145,11 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
     params = model.init(params_key, *init_feat)
 
-    num_params = sum(math.prod(param.shape) for param in jax.tree_util.tree_leaves(params['params']))
+    num_params = sum(
+        math.prod(param.shape) for param in jax.tree_util.tree_leaves(params["params"])
+    )
 
-    print(f'Parameters: {num_params}')
+    print(f"Parameters: {num_params}")
 
     loss_fn = partial(mse, model_fn=model.apply)
     update_fn = partial(update, loss_fn=loss_fn, opt_update=opt_update)
@@ -162,7 +161,6 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
     val_scores = []
     test_loss = 0
     val_index = -1
-
 
     for epoch in range(args.epochs):
         ############
@@ -188,11 +186,13 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
             val_loss = eval_fn(val_loader, params)
 
             val_scores.append(val_loss)
-            print(f"[Epoch {epoch + 1:2d}] Training mse: {train_loss}, Validation mse: {val_loss}")
+            print(
+                f"[Epoch {epoch + 1:2d}] Training mse: {train_loss}, Validation mse: {val_loss}"
+            )
 
             if len(val_scores) == 1 or val_loss < val_scores[val_index]:
                 print("\t   (New best performance, saving model...)")
-                #save_model(model, params, checkpoint_path, model_name)
+                # save_model(model, params, checkpoint_path, model_name)
                 best_val_epoch = epoch
                 test_loss = eval_fn(test_loader, params)
                 val_index += 1
@@ -202,25 +202,28 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
             # Create the plot
             plt.figure(figsize=(10, 6))
-            plt.plot(x_train, train_scores, label='Train Scores', marker='o')
-            plt.plot(x_val, val_scores, label='Validation Scores', marker='s')
+            plt.plot(x_train, train_scores, label="Train Scores", marker="o")
+            plt.plot(x_val, val_scores, label="Validation Scores", marker="s")
 
             # Adding titles and labels
-            plt.title('Training and Validation Scores')
-            plt.xlabel('Epochs')
-            plt.ylabel('Scores')
+            plt.title("Training and Validation Scores")
+            plt.xlabel("Epochs")
+            plt.ylabel("Scores")
             plt.legend()
             plt.grid(True)
             plt.ylim(0, 0.1)
             # Show plot
             plt.show()
 
-
-    print(f"Final Performance [Epoch {best_val_epoch + 1:2d}] Training mse: {train_scores[best_val_epoch]}, "
-          f"Validation mse: {val_scores[val_index]}, Test mse: {test_loss} ")
-    results = {"test_mae": test_loss, "val_scores": val_scores[val_index],
-               "train_scores": train_scores[best_val_epoch]}
-
+    print(
+        f"Final Performance [Epoch {best_val_epoch + 1:2d}] Training mse: {train_scores[best_val_epoch]}, "
+        f"Validation mse: {val_scores[val_index]}, Test mse: {test_loss} "
+    )
+    results = {
+        "test_mae": test_loss,
+        "val_scores": val_scores[val_index],
+        "train_scores": train_scores[best_val_epoch],
+    }
 
 
 if __name__ == "__main__":
@@ -256,7 +259,7 @@ if __name__ == "__main__":
         choices=["charged", "gravity"],
     )
 
-    parser.add_argument("--nbody_path", default='n_body/dataset/data/')
+    parser.add_argument("--nbody_path", default="n_body/dataset/data/")
 
     # Model parameters
     parser.add_argument(
@@ -292,6 +295,8 @@ if __name__ == "__main__":
     main_key, params_key, dropout_key = jax.random.split(key=root_key, num=3)
     parsed_args.params_key = params_key
 
-    batch_transform = NbodyBatchTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
+    batch_transform = NbodyBatchTransform(
+        n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name
+    )
 
     train_model(parsed_args, batch_transform, "test", "assets")

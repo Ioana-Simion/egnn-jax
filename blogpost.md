@@ -154,6 +154,8 @@ As a baseline, we compare our dual encoder transformer to varying architectures,
 
 For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is a task which involves predicting quantum chemical properties (at DFT level) of small organic molecules and is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data, as it involves predicting the positions of particles depending on the charges and velocities.
 
+In addition, an ablation study is conducted to evaluate the performance of our method when parts of it are disabled, which is further detailed below.
+
 ## **<a name="reproduction">Reproduction of the Experiments</a>**
 
 To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in Jax, to make use of Jax's faster just-in-time (jit) compilation.
@@ -259,11 +261,11 @@ As our method is implemented using JAX, one advantage is that it is faster than 
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
-## **<a name="architecture">Ablation studies</a>**
+## **<a name="ablation">Ablation studies</a>**
 
-### Comparison of different Equivariances on the N-body dataset.
+### **Comparison of different Equivariances on the N-body dataset.**
 
-For this comparison, we compare 4 different transformer architectures. One architecture is a standard transformer (not equivariant), that uses the positions as input to predict the final positions. Furthermore we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass.
+Here, we compare 4 different transformer architectures. The first is a standard transformer (not equivariant) that uses the positions as input to predict the final positions. Furthermore, we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass.
 
 <table align="center">
   <tr align="center">
@@ -285,7 +287,7 @@ For this comparison, we compare 4 different transformer architectures. One archi
   </tr>
 </table>
 
-### Comparison of different Transformer Architectures
+### **Comparison of different Transformer Architectures**
 
 
 
