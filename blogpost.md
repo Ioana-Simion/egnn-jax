@@ -117,7 +117,7 @@ where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternat
 Similarly to how the equivariant GNN in \[5\] is made equivariant, we created 2 different ways of introducing equivariance for a node-centric approach. Our model predicts the difference between starting and final position. To create equivariance we follow the following 2 approaches:
 
 $$\begin{align} 
-x^{output}_i = x^{input}_i + velocity_i \cdot \Phi(????)
+x^{output}_i = x^{input}_i + velocity_i \cdot \Phi(????)\\
 x^{output}_i = x^{input}_i + (x^{input}_i - x^{com}) \cdot \Phi(????)
 \end{align}$$
 
