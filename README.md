@@ -43,6 +43,8 @@ To perform the experiments, simply run the following lines:
 python main_qm9.py
 python transformer_trainer.py
 
+Example notebooks with the runs for our experiments can be found in /notebooks/
+
 ```
 
 You can adjust the process using the following parameters:
