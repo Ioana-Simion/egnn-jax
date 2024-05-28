@@ -265,7 +265,7 @@ Furthermore, having the implementation be fully in JAX allows it to benefit from
 
 ### **Comparison of different Equivariances on the N-body dataset.**
 
-Here, we compare 4 different transformer architectures. The first is a standard transformer (not equivariant) that uses the positions as input to predict the final positions. Furthermore, we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass.
+Here, we compare 4 different transformer architectures. The first is a standard transformer (not equivariant) that uses the positions as input to predict the final positions. Furthermore, we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass. All models were trained for 40 epochs.
 
 <table align="center">
   <tr align="center">
@@ -287,7 +287,11 @@ Here, we compare 4 different transformer architectures. The first is a standard 
   </tr>
 </table>
 
+This table confirms that equivariant models, outperform models that do not make use of equivariance. Further, in our example where rotation and translation are important, a model that is equivariant for translation and rotation is better than a model that is only equivariant for translations. It is surprising how much better the velocity based roto-translation equivariant model is. Some equivariance approaches are more expressive than others.
+
 ### **Comparison of different Transformer Architectures**
+
+Different types of architectures for the transformer are compared on the roto-translation velocity model. The hyper-parameters (hidden dimensions, number of encoders) of the models in the table were varied so that all models have around 100k parameters.
 
 <table align="center">
   <tr align="center">
@@ -308,6 +312,8 @@ Here, we compare 4 different transformer architectures. The first is a standard 
     <td colspan=9><b>Table 3.</b> Comparison of different transformer architectures on the N-body dataset for the translation rotation equivariant Transformer using velocity.</td>
   </tr>
 </table>
+
+
 
 ## **Concluding Remarks**
 
