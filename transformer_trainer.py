@@ -113,9 +113,9 @@ def train_model(args, model, model_name, checkpoint_path):
             target = target[:, property_idx]
 
             # Handle nan and inf values
-            edge_attr = handle_nan(edge_attr)
-            node_attr = handle_nan(node_attr)
-            target = handle_nan(target)
+            #edge_attr = handle_nan(edge_attr)
+            #node_attr = handle_nan(node_attr)
+            #target = handle_nan(target)
             
             loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, cross_mask=edge_attn_mask, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
             train_loss += loss
