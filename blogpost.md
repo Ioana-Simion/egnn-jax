@@ -299,7 +299,7 @@ Here, we compare 4 different transformer architectures. The first is a standard 
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
     <td align="left">0.050895</td>
-    <td align="left"></td>
+    <td align="left">0.040679</td>
     <td align="left">0.050895</td>
   </tr>
   <tr align="left">
