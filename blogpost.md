@@ -329,9 +329,10 @@ Z^0_j &= Z^p_n + Z^r_e,
 
 Thus, the output of the combined encoder will have sequence length the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
 $$\begin{align} 
-x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(\mathbf{m}\_{ij}) ,
+x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(F, E)_{ij},
 \end{align}$$ 
-Notice that the update equation is a one step formula, as opposed to the iterative update in Welling's forumla. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
+where $F$ and $E$ are the node and edge feature matrices. 
+Notice that the update equation is a one step formula, as opposed to the iterative update in the EGNN forumla. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
 ## **Concluding Remarks**
 
 Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is quite effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and domain-specific inductive biases.
