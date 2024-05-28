@@ -197,7 +197,7 @@ if __name__ == "__main__":
         type=str,
         default="translation",
         help="type of equivariance",
-        choices=["not_equivariant", "translation", "roto_translation"],
+        choices=["not_equivariant", "translation", "roto_translation", "velo_roto_translation"],
     )
     parser.add_argument(
         "--nbody_name",

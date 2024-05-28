@@ -379,19 +379,20 @@ class EGNNTransformer(nn.Module):
             output = self.output_net(node_encoded)
             if self.equivariance == 'not_equivariant':
                 return output
-            else:
-                if self.equivariance == 'roto_translation':
-                    center_mass = coords.mean(axis=1, keepdims=True)
-                    distance = coords - center_mass
-                    if self.velocity:
-                        return coords + vel + output * distance
-                    else:
-                        return coords + output * distance
+            elif self.equivariance == 'roto_translation':
+                center_mass = coords.mean(axis=1, keepdims=True)
+                distance = coords - center_mass
+                if self.velocity:
+                    return coords + vel + output * distance
                 else:
-                    if self.velocity:
-                        return coords + vel + output
-                    else:
-                        return coords + output
+                    return coords + output * distance
+            elif self.equivariance == 'velo_roto_translation':
+                return coords + vel * output
+            else:
+                if self.velocity:
+                    return coords + vel + output
+                else:
+                    return coords + output
 
         else:
             return self.output_net(node_encoded[:, 0])
