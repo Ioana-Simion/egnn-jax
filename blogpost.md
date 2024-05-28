@@ -60,7 +60,7 @@ x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) (\math
 
 This idea of using the distances during computation forms one of the bases of our proposed transformer architecture, as it is a simple yet effective way to impose geometric equivariance within a system.
 
-## **<a name="architecture">Equivariant Transformers</a>**
+## **<a name="architecture">Equivariant Transformer</a>**
 
 <table align="center">
   <tr align="center">
