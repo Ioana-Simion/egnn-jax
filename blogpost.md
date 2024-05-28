@@ -295,7 +295,6 @@ Here, we compare 4 different transformer architectures. The first is a standard 
       <th align="left">Node only encoder</th>
       <th align="left">Edge Cross Attention</th>
       <th align="left">Double Encoder</th>
-    <th align="left">translation rotation equivariant Transformer velocity</th>
   </tr>
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
