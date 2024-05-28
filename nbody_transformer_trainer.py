@@ -208,6 +208,8 @@ if __name__ == "__main__":
     )
     parser.add_argument('--train_from_checkpoint', action='store_true', default=False,
                         help='Enables training form checkpoint')
+    parser.add_argument('--node_only', action='store_true', default=False,
+                        help='Enables training form checkpoint')
 
     # Model parameters
     parser.add_argument(

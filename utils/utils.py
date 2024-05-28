@@ -134,13 +134,11 @@ def get_model(args: Namespace) -> nn.Module:
         predict_pos = False
         velocity = False
         n_nodes = 1
-        node_only = False
     elif args.dataset == "charged":
         num_out = 3
         predict_pos = True
         velocity = True
         n_nodes = 5
-        node_only = False
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
@@ -178,7 +176,7 @@ def get_model(args: Namespace) -> nn.Module:
             predict_pos=predict_pos,
             n_nodes=n_nodes,
             velocity=velocity,
-            node_only=node_only,
+            node_only=args.node_only,
             equivariance=args.equivariance,
         )
     else:
