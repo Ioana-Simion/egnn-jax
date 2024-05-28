@@ -144,7 +144,7 @@ def get_model(args: Namespace) -> nn.Module:
     else:
         raise ValueError(f"Do not recognize dataset {args.dataset}.")
 
-    if args.model_name == "egnn" or args.model_name == "egnn_vel":
+    if (args.dataset == "charged") and (args.model_name == "egnn" or args.model_name == "egnn_vel"):
         from models.egnn_jax import EGNN_equiv
 
         if args.model_name == "egnn_vel":
@@ -157,7 +157,13 @@ def get_model(args: Namespace) -> nn.Module:
             out_node_nf=num_out,
             n_layers=args.num_layers,
             velocity=velocity)
+    elif (args.model_name == "egnn") and (args.dataset == "qm9"):
+        from models.egnn_jax import EGNN_QM9
 
+        model = EGNN_QM9(
+            hidden_nf=args.num_hidden,
+            out_node_nf=num_out,
+            n_layers=args.num_layers)
     elif args.model_name == "transformer" or args.model_name == "invariant_transformer":
         from models.transformer import EGNNTransformer
 

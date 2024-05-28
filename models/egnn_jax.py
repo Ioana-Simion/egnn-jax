@@ -87,7 +87,7 @@ class E_GCL(nn.Module):
         return coord
 
     @nn.compact
-    def __call__(self, h, edge_index, coord, vel, edge_attr=None):
+    def __call__(self, h, edge_index, coord, vel=None, edge_attr=None):
         m_ij = self.edge_model(edge_index, h, coord, edge_attr)
         h, agg = self.node_model(edge_index, m_ij, h)
         coord = self.coord_model(edge_index, m_ij, coord)
