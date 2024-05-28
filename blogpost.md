@@ -114,9 +114,20 @@ Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 11)}
 
 where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. Afterwards, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token in the $Z^0_j$ or the $Z^0_n$ input which is used for classification.
 
-Similarly to how the equivariant EGNN in \[5\] is made equivariant, we also introduce as a lest step a calculation where we preidct $\delta x$. We implemented two versions: One that calculates the position update and one version that takes velocity into account. 
+Similarly to how the equivariant GNN in \[5\] is made equivariant, we created 2 different ways of introducing equivariance for a node-centric approach. Our model predicts the difference between starting and final position. To create equivariance we follow the following 2 approaches:
+
+$$\begin{align} 
+x^{output}_i = x^{input}_i + velocity_i \cdot \Phi(????)
+x^{output}_i = x^{input}_i + (x^{input}_i - x^{com}) \cdot \Phi(????)
+\end{align}$$
 
 ### **Proof of Equivariance**
+
+$$\begin{align} 
+Qx_i^{update}+g&=Qx_i^{input}+g+Qvel_i^{input}\Phi(??????)\\
+&=Q(x_i^{input}+vel_i^{input}\Phi(???????))+g\\
+&=Qx_i^{update}+g\\
+\end{align}$$
 
 $$\begin{align} 
 Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????)\\
@@ -265,9 +276,9 @@ For this comparison, we compare 4 different transformer architectures. One archi
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
     <td align="left"></td>
+    <td align="left">0.364862</td>
     <td align="left"></td>
-    <td align="left"></td>
-    <td align="left"></td>
+    <td align="left">0.050895</td>
   </tr>
   <tr align="left">
     <td colspan=9><b>Table 3.</b> Comparison of different equivariances on the N-body dataset.</td>
