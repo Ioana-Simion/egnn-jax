@@ -135,7 +135,7 @@ For all the aforementioned methods except TorchMD-Net (due to time constraints),
 
 ## **<a name="reproduction">Reproduction of the Experiments</a>**
 
-From reproducing the experiments, we obtain the following results:
+To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in Jax, to make use of Jax's faster just-in-time (jit) compilation.
 
 <table align="center">
   <tr align="center">
@@ -158,7 +158,7 @@ From reproducing the experiments, we obtain the following results:
   </tr>
 </table>
 
-Here, we can see that our implementation of the EGNN is significantly better than the one from \[7\]. Meanwhile, our transformer is also better than the aforementioned baseline while also staying comparable to the one from \[5\]. Note that the results here do show that using equivariance improves performance, based on a comparison we perform with an invariant version of our transformer.
+Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
