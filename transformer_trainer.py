@@ -46,7 +46,7 @@ def update(params, edge_attr, node_attr, cross_mask, target, opt_state, rng, mod
 def mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn):
     variables = {'params': params}
     rngs = {'dropout': dropout_rng}
-    pred = model_fn(variables, edge_attr, node_attr, None, None, cross_mask=cross_mask, train=True, rngs=rngs)
+    pred = model_fn(variables, node_attr, edge_attr, None, None, cross_mask=cross_mask, train=True, rngs=rngs)
 
     return jnp.mean((pred - target) ** 2)
 
@@ -99,7 +99,7 @@ def train_model(args, model, model_name, checkpoint_path):
     init_node_attr, init_edge_attr, edge_attn_mask, x, y = next(iter(train_loader))
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     rng, init_rng = jax.random.split(jax_seed)
-    params = model.init(init_rng, init_node_attr, init_edge_attr, coords=None, vel=None)['params']
+    params = model.init(init_rng, init_node_attr, init_edge_attr, coords=None, vel=None, cross_mask=edge_attn_mask)['params']
     opt_state = opt_init(params)
 
     train_scores = []
@@ -117,7 +117,7 @@ def train_model(args, model, model_name, checkpoint_path):
             #node_attr = handle_nan(node_attr)
             #target = handle_nan(target)
             
-            loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, cross_mask=edge_attn_mask, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
+            loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, cross_mask=cross_mask, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
             train_loss += loss
 
             # Manually trigger garbage collection
