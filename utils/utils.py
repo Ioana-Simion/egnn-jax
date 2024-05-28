@@ -68,7 +68,7 @@ def get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges):
             padded_edges = torch.where(padded_edges != -1, padded_edges + start_idx, padded_edges)
             edge_index.append(padded_edges)
             start_idx += num_edges
-        edge_index = jnp.array(torch.stack(edge_index).transpose(0, 1).reshape(2, -1).numpy())
+        edge_index = jnp.array(torch.stack(edge_index))
         edge_attn_mask = batched_mask_from_edges(edge_index, max_num_nodes, max_num_edges)
 
         edge_attr = [d.edge_attr for d in data_list]
