@@ -76,9 +76,11 @@ Our method of improving the aforementioned architecture would be to leverage the
 As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first encoder contains all the node features and normalized distances of each node to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
 
 Formally a feature vector for a single node $n$ looks like this:
+
 $$\begin{align} 
 F_n = [f_n^{(0)}, ..., f_n^{(s)}, ||x_n-x_{COM}||]
 \end{align}$$
+
 where $s$ is the number of node features, $x_i$ is the position of node $i$ and $x_{COM}$ is the center of mass position.
 
 To explain this approach, we first need to define the following components:
