@@ -313,6 +313,9 @@ Different types of architectures for the transformer are compared on the roto-tr
   </tr>
 </table>
 
+talk about edge embedding then cross attention with node encoder best
+
+Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390.
 
 
 ## **Concluding Remarks**
