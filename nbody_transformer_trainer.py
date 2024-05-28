@@ -172,7 +172,7 @@ if __name__ == "__main__":
     # Run parameters
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
     parser.add_argument(
-        "--batch_size", type=int, default=100, help="Batch size (number of graphs)."
+        "--batch_size", type=int, default=500, help="Batch size (number of graphs)."
     )
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
     parser.add_argument(
