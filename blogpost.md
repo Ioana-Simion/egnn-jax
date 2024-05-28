@@ -152,7 +152,7 @@ From reproducing the experiments, we obtain the following results:
     <td align="left">0.0025</td>
   </tr>
   <tr align="left">
-    <td colspan=6><b>Table 1.</b> Reproduction results from [5, 7] and comparison with DEMETAr.</td>
+    <td colspan=6><b>Table 1.</b> Reproduction results from [5] and comparison with our Jax implementation.</td>
   </tr>
 </table>
 
