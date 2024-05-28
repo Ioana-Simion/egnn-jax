@@ -292,13 +292,15 @@ Here, we compare 4 different transformer architectures. The first is a standard 
 <table align="center">
   <tr align="center">
       <th align="left"></th>
-      <th align="left">Node only encoder</th>
+      <th align="left">Node only encoder dim 128</th>
+    <th align="left">Node only 4 encoder blocks</th>
       <th align="left">Edge Cross Attention</th>
       <th align="left">Double Encoder</th>
   </tr>
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
     <td align="left">0.050895</td>
+    <td align="left">0.051638</td>
     <td align="left">0.040679</td>
     <td align="left">0.050895</td>
   </tr>
