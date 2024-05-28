@@ -87,7 +87,7 @@ To explain this approach, we first need to define the following components:
 
 $$\begin{align} 
 & K^l_e, V^l_e &: \text{the keys, values of edge features at layer } l. \\
-& K^l_n, V^l_n, Q^l_n &: \text{the keys, values of node features at layer } l.
+& K^l_n, V^l_n, Q^l_n &: \text{the keys, values, queries of node features at layer } l.
 \end{align}$$
 
 Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the edge features to get complex edge features. Then, we want to obtain "edge enrichments" of the node space $Z^p_e$, i.e edge information incorporated into the node encoder space. We obtain $K^p_e$, $V^p_e$ and perform the following attention operation:
