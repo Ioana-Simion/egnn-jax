@@ -318,19 +318,23 @@ In this section we would like to outline out theoretical vision for a method clo
 A limitation to our method is that while equvariant, it does not cover the entire space of possible roto-translations, if we were to model them (as in the NBody dataset). To tackle this issue, a true E(3)-equivariant transformer could be constructed as follows.
 
 First, the original proposed method should be modified to work in the edge space, as opposed to the node space. This means that Equation 9 will now have node keys and values and edge queries:
+
 $$\begin{align} 
 Z^p_n = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}},
 \end{align}$$
 
 Then, the summation of Equation 11 will be:
+
 $$\begin{align} 
 Z^0_j &= Z^p_n + Z^r_e,
 \end{align}$$ 
 
 Thus, the output of the combined encoder will have sequence length the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
+
 $$\begin{align} 
 x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(\mathbf{m}\_{ij}) ,
 \end{align}$$ 
+
 Notice that the update equation is a one step formula, as opposed to the iterative update in Welling's forumla. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
 ## **Concluding Remarks**
 
