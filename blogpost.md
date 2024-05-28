@@ -248,6 +248,30 @@ As our method is implemented using JAX, one advantage is that it is faster than 
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
+## **<a name="architecture">Ablation studies</a>**
+
+### Comparison of different Equivariances on the N-body dataset.
+
+For this comparison, we compare 3 different transformer architectures. One architecture is a standard transformer (not equivariant), that uses the positions as input to predict the final positions. Furthermore we have 2 equivariant transformers: One that is translation equivariant and one that is translation and rotation equivariant.
+
+<table align="center">
+  <tr align="center">
+      <th align="left"></th>
+      <th align="left">standard Transformer</th>
+      <th align="left">translation equivariant Transformer</th>
+      <th align="left">translation rotation equivariant Transformer</th>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>x</sub></td>
+    <td align="left">0.0691</td>
+    <td align="left">0.0639</td>
+    <td align="left">0.0151</td>
+  </tr>
+  <tr align="left">
+    <td colspan=9><b>Table 3.</b> Comparison of different equivariances on the N-body dataset.</td>
+  </tr>
+</table>
+
 
 ## **Concluding Remarks**
 
