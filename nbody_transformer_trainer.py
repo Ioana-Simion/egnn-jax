@@ -182,6 +182,7 @@ if __name__ == "__main__":
         default=1,
         help="Evaluation frequency (number of epochs)",
     )
+    parser.add_argument("--max_samples", type=int, default=3000)
 
     # Dataset parameters
     parser.add_argument(
