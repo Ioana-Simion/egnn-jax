@@ -71,7 +71,7 @@ def evaluate(loader, params, rng, model_fn, property_idx):
         return float('inf')  # Return infinity to show issue
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
-        edge_attr, node_attr, _, _, target = data
+        edge_attr, node_attr, cross_mask, pos, target = data
         target = target[:, property_idx]
         
         # Handle nan and inf values
@@ -80,7 +80,7 @@ def evaluate(loader, params, rng, model_fn, property_idx):
         #target = handle_nan(target)
 
         _, dropout_rng = jax.random.split(rng)
-        loss = mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn)
+        loss = mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn)
         eval_loss += loss
     return eval_loss / num_batches
 
