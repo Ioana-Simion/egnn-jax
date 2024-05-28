@@ -62,7 +62,7 @@ def handle_nan(data):
     data = jnp.nan_to_num(data, pos_inf=0, neg_inf=0)
     return data
 
-def evaluate(loader, params, rng, model_fn):
+def evaluate(loader, params, rng, model_fn, property_idx):
     eval_loss = 0.0
     num_batches = len(loader)
     
@@ -71,8 +71,8 @@ def evaluate(loader, params, rng, model_fn):
         return float('inf')  # Return infinity to show issue
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
-        edge_attr, node_attr, _, _, _, target = data
-        target = jnp.array(target)
+        edge_attr, node_attr, _, _, target = data
+        target = target[:, property_idx]
         
         # Handle nan and inf values
         #edge_attr = handle_nan(edge_attr)
@@ -135,7 +135,7 @@ def train_model(args, model, model_name, checkpoint_path):
         writer.add_scalar('AvgLoss/train', train_loss, global_step=global_step)
 
         if epoch % args.val_freq == 0:
-            val_loss = evaluate(val_loader, params, rng, model.apply)
+            val_loss = evaluate(val_loader, params, rng, model.apply, property_idx)
             val_loss_item = float(jax.device_get(val_loss))
             val_scores.append(val_loss_item)
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss_item:.6f}")
@@ -144,7 +144,7 @@ def train_model(args, model, model_name, checkpoint_path):
                 print("\t   (New best performance, saving model...)")
                 save_model(params, checkpoint_path, model_name)
                 best_val_epoch = len(val_scores) - 1
-                test_loss = evaluate(test_loader, params, rng, model.apply)
+                test_loss = evaluate(test_loader, params, rng, model.apply, property_idx)
                 jax.clear_caches()
 
     if val_scores:
