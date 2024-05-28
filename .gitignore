@@ -30,6 +30,4 @@ assets/test/checkpoint_0/_CHECKPOINT_METADATA
 assets/test.tar
 assets/test_results.json
 data/QM9/raw/qm9.zip
-runs/events.out.tfevents.1716824548.DESKTOP-B48BPCN.2840.0
-runs/events.out.tfevents.1716824694.DESKTOP-B48BPCN.6048.0
-runs/events.out.tfevents.1716824894.DESKTOP-B48BPCN.16600.0
+runs/*
