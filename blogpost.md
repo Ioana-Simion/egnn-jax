@@ -226,8 +226,6 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">Tensor Field</th>
       <th align="left">Set Transformer</th>
       <th align="left">SE(3)-Transformer</th>
-      <th align="left">standard Node only Transformer</th>
-      <th align="left">equivariant Node only Transformer</th>
       <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
@@ -237,9 +235,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
-    <td align="left">0.109965</td>
-    <td align="left">0.011273</td> 
-    <td align="left"></td>
+    <td align="left">0.050895</td>
   </tr>
   <tr align="left">
     <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
