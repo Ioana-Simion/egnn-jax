@@ -10,7 +10,9 @@ dependencies:
   - lightning
   - rdkit
   - pip
+  - tensorboard
   - pip:
     - "jax[cpu]"
     - torch_geometric
     - flax
+    - jraph

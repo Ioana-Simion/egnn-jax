@@ -10,3 +10,7 @@ dependencies:
   - lightning
   - jax
   - flax
+  - tensorboard
+  - pip:
+    - jraph
+    - torch_geometric
