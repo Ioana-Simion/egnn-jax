@@ -53,7 +53,7 @@ In order to make this implementation equivariant, \[5\] introduced the inputting
 
 $$\begin{align} 
 \mathbf{m}\_{ij} = \varphi_e (\mathbf{h}\_i^l, \mathbf{h}\_j^l, ||\mathbf{x}\_i^l - \mathbf{x}\_j^l||^2, a_{ij}), & \qquad \qquad \text{(Equation 5)} \\
-x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) (\mathbf{m}\_{ij}) \varphi_x, & \qquad \qquad \text{(Equation 6)} \\
+x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \varphi_x(\mathbf{m}\_{ij}) , & \qquad \qquad \text{(Equation 6)} \\
 \mathbf{m}\_{i} = \sum_{j \in \mathcal{N}\_i } \mathbf{m}\_j, & \qquad \qquad \text{(Equation 7)} \\
 \mathbf{h}\_i^{l+1} = \varphi_h (\mathbf{h}\_i^l, \mathbf{m}\_i). & \qquad \qquad \text{(Equation 8)}
 \end{align}$$
@@ -117,21 +117,21 @@ where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternat
 Similarly to how the equivariant GNN in \[5\] is made equivariant, we created 2 different ways of introducing equivariance for a node-centric approach. Our model predicts the difference between starting and final position. To create equivariance we follow the following 2 approaches:
 
 $$\begin{align} 
-x^{output}_i = x^{input}_i + vel_i^{input} \cdot \Phi(????)\\
-x^{output}_i = x^{input}_i + (x^{input}_i - x^{com}) \cdot \Phi(????)
+x^{output}_i = x^{input}_i + vel_i^{input} \cdot \Phi(F_i)\\
+x^{output}_i = x^{input}_i + (x^{input}_i - x^{com}) \cdot \Phi(F_i)
 \end{align}$$
 
 ### **Proof of Equivariance**
 
 $$\begin{align} 
-Qx_i^{update}+g&=Qx_i^{input}+g+Qvel_i^{input}\Phi(??????)\\
-&=Q(x_i^{input}+vel_i^{input}\Phi(???????))+g\\
+Qx_i^{update}+g&=Qx_i^{input}+g+Qvel_i^{input}\Phi(F_i)\\
+&=Q(x_i^{input}+vel_i^{input}\Phi(F_i))+g\\
 &=Qx_i^{update}+g\\
 \end{align}$$
 
 $$\begin{align} 
-Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????)\\
-&=Q(x_i^{input}+(x_i^{input}-x^{center})\Phi(???????))+g\\
+Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(F_i)\\
+&=Q(x_i^{input}+(x_i^{input}-x^{center})\Phi(F_i))+g\\
 &=Qx_i^{update}+g\\
 \end{align}$$
 
@@ -317,7 +317,26 @@ talk about edge embedding then cross attention with node encoder best
 
 Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390.
 
+## **Future Work**
+In this section we would like to outline out theoretical vision for a method closer to the EGNN method but a still transformer. Since we did not have time to execute it in practice, this is only a theoretical overview.
 
+A limitation to our method is that while equvariant, it does not cover the entire space of possible roto-translations, if we were to model them (as in the NBody dataset). To tackle this issue, a true E(3)-equivariant transformer could be constructed as follows.
+
+First, the original proposed method should be modified to work in the edge space, as opposed to the node space. This means that Equation 9 will now have node keys and values and edge queries:
+$$\begin{align} 
+Z^p_n = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}},
+\end{align}$$
+
+Then, the summation of Equation 11 will be:
+$$\begin{align} 
+Z^0_j &= Z^p_n + Z^r_e,
+\end{align}$$ 
+
+Thus, the output of the combined encoder will have sequence length the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
+$$\begin{align} 
+x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(\mathbf{m}\_{ij}) ,
+\end{align}$$ 
+Notice that the update equation is a one step formula, as opposed to the iterative update in Welling's forumla. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
 ## **Concluding Remarks**
 
 Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is quite effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and domain-specific inductive biases.
