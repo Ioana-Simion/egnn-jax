@@ -3,7 +3,7 @@ import argparse
 import jax.numpy as jnp
 import torch
 from torch import sin, cos
-from n_body.utils import NbodyGraphTransform
+from n_body.utils import NbodyBatchTransform
 from utils.utils import get_model, get_loaders, set_seed
 
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     parsed_args = parser.parse_args()
 
     set_seed(parsed_args.seed)
-    graph_transform = NbodyGraphTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
+    graph_transform = NbodyBatchTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
     train_loader, val_loader, test_loader = get_loaders(parsed_args, transformer=True)
     init_feat, a = graph_transform(next(iter(train_loader)))
     model = get_model(parsed_args)
