@@ -283,7 +283,7 @@ Here, we compare 4 different transformer architectures. The first is a standard 
   </tr>
 </table>
 
-This table confirms that equivariant models, outperform models that do not make use of equivariance. Further, in our example where rotation and translation are important, a model that is equivariant for translation and rotation is better than a model that is only equivariant for translations. It is surprising how much better the velocity based roto-translation equivariant model is. Some equivariance approaches are more expressive than others.
+The baseline performance is the standard transformer. The bad performance highlights the need for equivariance for this task. The transformer has issues generalising, possibly to rotated and translated examples within a dataset. The second model, which is translation equivariant performs better however it is outperformed by models which are translation and rotation equivariant. By introducing roto translation equivariant models, they can fully learn the rules of the dynamical system while not being restricted to struggling with learning how rotations also influence the dynamical system. It is demonstrated, that models incorporating equivariance outperform those that do not. Furthermore we show that not all equivariant approaches are equally expressive.
 
 ### **Comparison of different Transformer Architectures**
 
