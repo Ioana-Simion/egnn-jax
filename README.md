@@ -93,7 +93,9 @@ You can adjust the process using the following parameters:
 | --max_samples      | Maximum number of samples                         | 3000               |
 
 
-## **2. Training**
+Alternatively, the experiments can be run [here](notebooks/Demo.ipynb).
+
+## **3. References**
 
 Some of the code has been adapted from the following sources:
 
