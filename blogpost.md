@@ -309,9 +309,8 @@ Different types of architectures for the transformer are compared on the roto-tr
   </tr>
 </table>
 
-talk about edge embedding then cross attention with node encoder best
-
-Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390.
+Both Node-only encoder approaches, perform very similar, leading to the conclusion that both are able to capture the information that lies within the nodes. The best performing model, uses an embedding layer for the edge features, a node encoder built on top of a node embedding layer, both which get put into a cross attention layer. This layer enriches the node space with edge information directly, while the double encoder appraoch uses an encoder between the edge embedding and the cross attention layer.
+Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. The double encoder approach enriches the node space with information from the edge space. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390. The biggest constraint in our model development are the computational ressources, because of which only limited experiments were ran with a limited set of hyperparameters. 
 
 
 ## **Concluding Remarks**
