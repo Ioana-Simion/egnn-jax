@@ -289,7 +289,24 @@ Here, we compare 4 different transformer architectures. The first is a standard 
 
 ### **Comparison of different Transformer Architectures**
 
-
+<table align="center">
+  <tr align="center">
+      <th align="left"></th>
+      <th align="left">Node only encoder</th>
+      <th align="left">Edge Cross Attention</th>
+      <th align="left">Double Encoder</th>
+    <th align="left">translation rotation equivariant Transformer velocity</th>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>x</sub></td>
+    <td align="left"></td>
+    <td align="left"></td>
+    <td align="left">0.050895</td>
+  </tr>
+  <tr align="left">
+    <td colspan=9><b>Table 3.</b> Comparison of different transformer architectures on the N-body dataset for the translation rotation equivariant Transformer using velocity.</td>
+  </tr>
+</table>
 
 ## **Concluding Remarks**
 
