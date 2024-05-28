@@ -71,7 +71,7 @@ def evaluate(loader, params, rng, model_fn, property_idx):
         return float('inf')  # Return infinity to show issue
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
-        edge_attr, node_attr, cross_mask, pos, target = data
+        node_attr, edge_attr, cross_mask, pos, target = data
         target = target[:, property_idx]
         
         # Handle nan and inf values
