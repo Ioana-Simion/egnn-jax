@@ -126,6 +126,16 @@ Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????)\\
 
 Our dual encoder system is equivariant is through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, the attention mechanism in our transformers uses adjacency masking to ensure that attention is only paid to connected nodes and edges, which inherently respects the graph structure and maintains the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
 
+### **Experiments**
+
+#### N-body dataset
+
+In this dataset, a dynamical system consisting of 5 atoms is modeled in 3D space. Each atom has a positive and negative charge, a starting position and a starting velocity. The task is to predict the position of the particles after 1000 time steps. The movement of the particles follow the rules of physics: Same charges repel and different charges attract. The task is equivariant in the sense, that translating and rotating the 5-body system on the input space is the same as rotating the output space.
+
+#### QM9 dataset
+
+This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule.
+
 
 ## **<a name="architecture">Evaluating the Models</a>**
 
