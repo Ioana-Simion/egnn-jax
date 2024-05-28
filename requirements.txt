@@ -5,3 +5,6 @@ tqdm==4.66.2
 rdkit
 jax[cpu]==0.4.26
 flax==0.8.2
+jraph
+torch_geometric
+tensorboard

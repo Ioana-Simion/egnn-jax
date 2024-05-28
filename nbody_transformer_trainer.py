@@ -13,7 +13,7 @@ from functools import partial
 from n_body.utils import NbodyBatchTransform
 from qm9.utils import GraphTransform
 from flax.training import checkpoints
-from utils.utils import get_model, get_loaders, set_seed
+from utils.utils import get_model, get_loaders_and_statistics, set_seed
 
 
 # Seeding
@@ -73,7 +73,7 @@ def evaluate(loader, params, rng, model_fn):
 
 
 def train_model(args, model, model_name, graph_transform, checkpoint_path):
-    train_loader, val_loader, test_loader = get_loaders(args, transformer=True)
+    train_loader, val_loader, test_loader = get_loaders_and_statistics(args, transformer=True)
 
     init_feat, _ = graph_transform(next(iter(train_loader)))
     opt_init, opt_update = optax.adamw(
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     # Run parameters
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
     parser.add_argument(
-        "--batch_size", type=int, default=100, help="Batch size (number of graphs)."
+        "--batch_size", type=int, default=500, help="Batch size (number of graphs)."
     )
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
     parser.add_argument(
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--model_name", type=str, default="invariant_transformer", help="Model name"
+        "--model_name", type=str, default="transformer", help="Model name"
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
@@ -240,8 +240,6 @@ if __name__ == "__main__":
 
     set_seed(parsed_args.seed)
     graph_transform = NbodyBatchTransform(n_nodes=5, batch_size=parsed_args.batch_size, model=parsed_args.model_name)
-    train_loader, val_loader, test_loader = get_loaders(parsed_args, transformer=True)
-    init_feat, a = graph_transform(next(iter(train_loader)))
     model = get_model(parsed_args)
 
     train_model(parsed_args, model, parsed_args.model_name, graph_transform, "assets")

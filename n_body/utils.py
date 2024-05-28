@@ -2,7 +2,7 @@
 
 import jax.numpy as jnp
 from typing import Callable, Dict, List, Tuple
-
+from models.utils import mask_from_edges
 
 def get_velocity_attr(loc, vel, rows, cols):
 
@@ -34,6 +34,19 @@ def NbodyBatchTransform(
         ]
     ).T
 
+    batched_edge_indices = jnp.stack(
+        [jnp.array(
+            [
+                (i, j)
+                for i in range(n_nodes)
+                for j in range(n_nodes)
+                if i != j
+            ]
+        ).T 
+        for _ in range(batch_size)]
+    )  # Shape: (batch_size, 2, n_edges)
+
+    mask_from_edges_batched = mask_from_edges()
 
     def _to_egnn(
         data: List,
@@ -84,7 +97,9 @@ def NbodyBatchTransform(
         pos = jnp.reshape(pos, (batch_size, n_nodes, dim_target))
         vel = jnp.reshape(vel, (batch_size, n_nodes, dim_target))
 
-        return (nodes, edge_attr, pos, vel), targets
+        cross_mask = mask_from_edges_batched(batched_edge_indices, n_nodes, n_nodes * (n_nodes - 1))
+
+        return (nodes, edge_attr, pos, vel, cross_mask), targets
 
     def _to_transformer(
         data: List,

@@ -1,4 +1,4 @@
-# The contents of this file are mostly taken from:
+# The contents of this file are partially taken from:
 # https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
 # It has here been adapted into an EGNN framework.
 
@@ -152,7 +152,10 @@ class TransformerEncoder(nn.Module):
         self.layers = (
             [
                 EncoderBlock(
-                    self.input_dim, self.num_heads, self.dim_feedforward, self.dropout_prob
+                    self.input_dim,
+                    self.num_heads,
+                    self.dim_feedforward,
+                    self.dropout_prob,
                 )
                 for _ in range(self.num_layers)
             ]
@@ -276,7 +279,6 @@ class EGNNTransformer(nn.Module):
     model_dim: int = 128
     num_heads: int = 8
     dropout_prob: float = 0.0
-    output_dim: int = 3
 
     input_dropout_prob: float = 0.0
 
@@ -290,7 +292,9 @@ class EGNNTransformer(nn.Module):
     def setup(self):
 
         # CLS token embedding
-        self.cls_token = self.param('cls', nn.initializers.zeros, [1, 1, self.model_dim])
+        self.cls_token = self.param(
+            "cls", nn.initializers.zeros, [1, 1, self.model_dim]
+        )
 
         # Node level
         self.input_dropout = nn.Dropout(self.input_dropout_prob)
@@ -306,7 +310,7 @@ class EGNNTransformer(nn.Module):
         )
 
         # Output classifier
-        self.output_net = nn.Dense(self.output_dim)
+        self.output_net = nn.Dense(3 if self.predict_pos else 1)
 
         if not self.node_only:
             self.input_layer_edges = nn.Dense(self.model_dim)
@@ -359,10 +363,13 @@ class EGNNTransformer(nn.Module):
                 edge_encoded = self.edge_encoder(edge_encoded, mask=None, train=train)
 
             # Cross Attention
-            edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
-
-            node_encoded = node_encoded + edge_enrichment
-
+            if not self.predict_pos:
+                edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded[:,1:,:], mask=cross_mask)
+                node_encoded.at[:,1:].set(node_encoded[:,1:] + edge_enrichment)
+            else:
+                edge_enrichment, _ = self.cross_attention(edge_encoded, node_encoded, mask=cross_mask)
+                node_encoded = node_encoded + edge_enrichment
+            
             # Combined Encoder
             node_encoded = self.combined_encoder(
                 node_encoded, mask=None, train=train
@@ -373,9 +380,11 @@ class EGNNTransformer(nn.Module):
             if self.invariant_pos:
                 return output
             else:
+                center_mass = coords.mean(axis=1, keepdims=True)
+                distance = coords - center_mass
                 if self.velocity:
-                    return coords + output * vel
+                    return coords + vel + output * distance
                 else:
-                    return coords + output
+                    return coords + output * distance
         else:
             return self.output_net(node_encoded[:, 0])
