@@ -21,7 +21,7 @@ Following these works, more efficient implementations have emerged, with the fir
 
 More recently, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness for tackling such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches.
 
-Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, after which combined to a common embedding space. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
+Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, which are afterwards combined to a common embedding space. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
 
 
 ## **<a name="recap">Recap of Equivariance</a>**
