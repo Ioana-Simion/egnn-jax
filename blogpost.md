@@ -139,20 +139,17 @@ From reproducing the experiments, we obtain the following results:
   <tr align="center">
       <th align="left">Task</th>
       <th align="left">EGNN</th>
-      <th align="left">TorchMD-Net</th>
       <th align="left">EGNN (Ours) </th>
   </tr>
   <tr align="center">
     <td align="left"> QM9 (ε<sub>HOMO</sub>) (meV)</td>
     <td align="left">29</td>
-    <td align="left">20.3</td>
     <td align="left"></td>
   </tr>
   <tr align="center">
     <td align="left">N-Body (Position MSE)</td>
     <td align="left">0.0071</td>
-    <td align="left">-</td>
-    <td align="left"></td>
+    <td align="left">0.0025</td>
   </tr>
   <tr align="left">
     <td colspan=6><b>Table 1.</b> Reproduction results from [5, 7] and comparison with DEMETAr.</td>
