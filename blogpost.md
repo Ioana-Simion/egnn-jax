@@ -53,7 +53,7 @@ In order to make this implementation equivariant, \[5\] introduced the inputting
 
 $$\begin{align} 
 \mathbf{m}\_{ij} = \varphi_e (\mathbf{h}\_i^l, \mathbf{h}\_j^l, ||\mathbf{x}\_i^l - \mathbf{x}\_j^l||^2, a_{ij}), & \qquad \qquad \text{(Equation 5)} \\
-x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) (\mathbf{m}\_{ij}) \varphi_x, & \qquad \qquad \text{(Equation 6)} \\
+x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \varphi_x(\mathbf{m}\_{ij}) , & \qquad \qquad \text{(Equation 6)} \\
 \mathbf{m}\_{i} = \sum_{j \in \mathcal{N}\_i } \mathbf{m}\_j, & \qquad \qquad \text{(Equation 7)} \\
 \mathbf{h}\_i^{l+1} = \varphi_h (\mathbf{h}\_i^l, \mathbf{m}\_i). & \qquad \qquad \text{(Equation 8)}
 \end{align}$$
@@ -114,13 +114,24 @@ Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 11)}
 
 where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. Afterwards, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token in the $Z^0_j$ or the $Z^0_n$ input which is used for classification.
 
-Similarly to how the equivariant EGNN in \[5\] is made equivariant, we also introduce as a lest step a calculation where we preidct $\delta x$. We implemented two versions: One that calculates the position update and one version that takes velocity into account. 
+Similarly to how the equivariant GNN in \[5\] is made equivariant, we created 2 different ways of introducing equivariance for a node-centric approach. Our model predicts the difference between starting and final position. To create equivariance we follow the following 2 approaches:
+
+$$\begin{align} 
+x^{output}_i = x^{input}_i + vel_i^{input} \cdot \Phi(F_i)\\
+x^{output}_i = x^{input}_i + (x^{input}_i - x^{com}) \cdot \Phi(F_i)
+\end{align}$$
 
 ### **Proof of Equivariance**
 
 $$\begin{align} 
-Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(??????)\\
-&=Q(x_i^{input}+(x_i^{input}-x^{center})\Phi(???????))+g\\
+Qx_i^{update}+g&=Qx_i^{input}+g+Qvel_i^{input}\Phi(F_i)\\
+&=Q(x_i^{input}+vel_i^{input}\Phi(F_i))+g\\
+&=Qx_i^{update}+g\\
+\end{align}$$
+
+$$\begin{align} 
+Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(F_i)\\
+&=Q(x_i^{input}+(x_i^{input}-x^{center})\Phi(F_i))+g\\
 &=Qx_i^{update}+g\\
 \end{align}$$
 
@@ -142,6 +153,8 @@ This dataset consists of small molecules and the task is to predict a chemical p
 As a baseline, we compare our dual encoder transformer to varying architectures, with the first being from \[5\] as it is generally the best performing model. In addition, we also show the baseline performance reported in QM9 to show how our transformer fares with other transformer methods, specifically compared with that of \[7\] as it outperforms many other implementations in the benchmarks tasks (i.e., QM9) due to utilizing radial basis functions to expand the interatomic distances and adjusting the transformer operations to acommodate to these modified distances naturally.
 
 For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is a task which involves predicting quantum chemical properties (at DFT level) of small organic molecules and is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data, as it involves predicting the positions of particles depending on the charges and velocities.
+
+In addition, an ablation study is conducted to evaluate the performance of our method when parts of it are disabled, which is further detailed below.
 
 ## **<a name="reproduction">Reproduction of the Experiments</a>**
 
@@ -213,8 +226,6 @@ Meanwhile, when comparing with other transformer implementations, we see based o
       <th align="left">Tensor Field</th>
       <th align="left">Set Transformer</th>
       <th align="left">SE(3)-Transformer</th>
-      <th align="left">standard Node only Transformer</th>
-      <th align="left">equivariant Node only Transformer</th>
       <th align="left">DEMETAr</th>
   </tr>
   <tr align="center">
@@ -224,12 +235,10 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.0151</td>
     <td align="left">0.0139</td>
     <td align="left"><b>0.0076</b></td>
-    <td align="left">0.109965</td>
-    <td align="left">0.011273</td> 
-    <td align="left"></td>
+    <td align="left">0.050895</td>
   </tr>
   <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, mostly taken from [18].</td>
+    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, taken from [18].</td>
   </tr>
 </table>
 
@@ -248,31 +257,85 @@ As our method is implemented using JAX, one advantage is that it is faster than 
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
-## **<a name="architecture">Ablation studies</a>**
+## **<a name="ablation">Ablation studies</a>**
 
-### Comparison of different Equivariances on the N-body dataset.
+### **Comparison of different Equivariances on the N-body dataset.**
 
-For this comparison, we compare 3 different transformer architectures. One architecture is a standard transformer (not equivariant), that uses the positions as input to predict the final positions. Furthermore we have 2 equivariant transformers: One that is translation equivariant and one that is translation and rotation equivariant.
+Here, we compare 4 different transformer architectures. The first is a standard transformer (not equivariant) that uses the positions as input to predict the final positions. Furthermore, we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass. All models were trained for 40 epochs.
 
 <table align="center">
   <tr align="center">
       <th align="left"></th>
       <th align="left">standard Transformer</th>
       <th align="left">translation equivariant Transformer</th>
-      <th align="left">translation rotation equivariant Transformer</th>
+      <th align="left">translation rotation equivariant Transformer center of mass</th>
+    <th align="left">translation rotation equivariant Transformer velocity</th>
   </tr>
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
-    <td align="left">0.0691</td>
-    <td align="left">0.0639</td>
-    <td align="left">0.0151</td>
+    <td align="left">1.259675</td>
+    <td align="left">0.364862</td>
+    <td align="left">0.313850</td>
+    <td align="left">0.050895</td>
   </tr>
   <tr align="left">
     <td colspan=9><b>Table 3.</b> Comparison of different equivariances on the N-body dataset.</td>
   </tr>
 </table>
 
+The baseline performance is the standard transformer. The bad performance highlights the need for equivariance for this task. The transformer has issues generalising, possibly to rotated and translated examples within a dataset. The second model, which is translation equivariant performs better however it is outperformed by models which are translation and rotation equivariant. By introducing roto translation equivariant models, they can fully learn the rules of the dynamical system while not being restricted to struggling with learning how rotations also influence the dynamical system. It is demonstrated, that models incorporating equivariance outperform those that do not. Furthermore we show that not all equivariant approaches are equally expressive.
 
+### **Comparison of different Transformer Architectures**
+
+Different types of architectures for the transformer are compared on the roto-translation velocity model. The hyper-parameters (hidden dimensions, number of encoders) of the models in the table were varied so that all models have around 100k parameters.
+
+<table align="center">
+  <tr align="center">
+      <th align="left"></th>
+      <th align="left">Node only encoder dim 128</th>
+    <th align="left">Node only 4 encoder blocks</th>
+      <th align="left">Edge Cross Attention</th>
+      <th align="left">Double Encoder</th>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>x</sub></td>
+    <td align="left">0.050895</td>
+    <td align="left">0.051638</td>
+    <td align="left">0.040679</td>
+    <td align="left">0.050895</td>
+  </tr>
+  <tr align="left">
+    <td colspan=9><b>Table 3.</b> Comparison of different transformer architectures on the N-body dataset for the translation rotation equivariant Transformer using velocity.</td>
+  </tr>
+</table>
+
+Both Node-only encoder approaches, perform very similar, leading to the conclusion that both are able to capture the information that lies within the nodes. The best performing model, uses an embedding layer for the edge features, a node encoder built on top of a node embedding layer, both which get put into a cross attention layer. This layer enriches the node space with edge information directly, while the double encoder appraoch uses an encoder between the edge embedding and the cross attention layer.
+Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. The double encoder approach enriches the node space with information from the edge space. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390. The biggest constraint in our model development are the computational ressources, because of which only limited experiments were ran with a limited set of hyperparameters. 
+
+## **Future Work**
+In this section we would like to outline out theoretical vision for a method closer to the EGNN method but a still transformer. Since we did not have time to execute it in practice, this is only a theoretical overview.
+
+A limitation to our method is that while equvariant, it does not cover the entire space of possible roto-translations, if we were to model them (as in the NBody dataset). To tackle this issue, a true E(3)-equivariant transformer could be constructed as follows.
+
+First, the original proposed method should be modified to work in the edge space, as opposed to the node space. This means that Equation 9 will now have node keys and values and edge queries:
+
+$$\begin{align} 
+Z^p_n = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}},
+\end{align}$$
+
+Then, the summation of Equation 11 will be:
+
+$$\begin{align} 
+Z^0_j &= Z^p_n + Z^r_e,
+\end{align}$$ 
+
+Thus, the output of the combined encoder will have sequence length the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
+
+$$\begin{align} 
+x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(\mathbf{m}\_{ij}) ,
+\end{align}$$ 
+
+Notice that the update equation is a one step formula, as opposed to the iterative update in Welling's forumla. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
 ## **Concluding Remarks**
 
 Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is quite effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and domain-specific inductive biases.
