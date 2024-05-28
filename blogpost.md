@@ -154,7 +154,7 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
     <td align="left">0.0025</td>
   </tr>
   <tr align="left">
-    <td colspan=6><b>Table 1.</b> Reproduction results from [5] and comparison with our Jax implementation.</td>
+    <td colspan=6><b>Table 1.</b> Reproduction results comparing [5] with our Jax implementation.</td>
   </tr>
 </table>
 
