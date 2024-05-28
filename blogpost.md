@@ -185,7 +185,7 @@ Here we can see, that our EGNN implementation outperforms the original author's 
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
-Meanwhile, when comparing with other transformer implementations, we see based on the below results that our method is very comparable or even outperforms many of the top approaches that have been published recently in the past few years for both QM9 and N-body. 
+Meanwhile, when comparing with other transformer implementations, we see based on the below results that our method is comparable to other approaches that have been published recently in the past few years for both QM9 and N-body. 
 
 <table align="center">
   <tr align="center">
