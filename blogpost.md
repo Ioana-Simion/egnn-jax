@@ -114,7 +114,7 @@ Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 11)}
 
 where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. Afterwards, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token in the $Z^0_j$ or the $Z^0_n$ input which is used for classification.
 
-Similarly to how the equivariant GNN in \[5\] is made equivariant, we created 2 different ways of introducing equivariance for a node-centric approach. Our model predicts the difference between starting and final position. To create equivariance we follow the following 2 approaches:
+Similarly to how the equivariant GNN in \[5\] is made equivariant, we created 2 different ways of introducing equivariance for a node-centric approach. Our model predicts the difference between starting and final position. $F_i$ are the edge enriched encoded features for node i. To create equivariance we follow the following 2 approaches:
 
 $$\begin{align} 
 x^{output}_i = x^{input}_i + vel_i^{input} \cdot \Phi(F_i)\\
