@@ -43,23 +43,6 @@ def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, targ
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
-
-def create_graph(h, x, edges, edge_attr):
-    n_node = jnp.array([h.shape[0]])
-    n_edge = jnp.array([edges.shape[1]])
-
-    graphs_tuple = jraph.GraphsTuple(
-            nodes=h,
-            edges=edge_attr,
-            senders=edges[0],
-            receivers=edges[1],
-            globals=None,
-            n_node=n_node,
-            n_edge=n_edge
-        )
-
-    return graphs_tuple
-
 def create_padding_mask(h, x, edges, edge_attr):
     graph = create_graph(h, x, edges, edge_attr)
     node_mask = jraph.get_node_padding_mask(graph)
