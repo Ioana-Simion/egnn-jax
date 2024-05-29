@@ -265,7 +265,7 @@ Here, we compare 4 different transformer architectures. The first is a standard 
     <td align="left">0.050895</td>
   </tr>
   <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of different equivariances on the N-Body dataset.</td>
+    <td colspan=9><b>Table 4.</b> Comparison of different equivariances on the N-Body dataset.</td>
   </tr>
 </table>
 
@@ -291,7 +291,7 @@ Different types of architectures for the transformer are compared on the roto-tr
     <td align="left">0.050895</td>
   </tr>
   <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of different transformer architectures on the N-Body dataset for the translation rotation equivariant Transformer using velocity.</td>
+    <td colspan=9><b>Table 5.</b> Comparison of different transformer architectures on the N-Body dataset for the translation rotation equivariant Transformer using velocity.</td>
   </tr>
 </table>
 
