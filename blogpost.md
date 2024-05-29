@@ -301,14 +301,14 @@ Another aspect that is very interesting, is to see that the Node-only encoder ap
 
 ## **<a name="speed">Comparison of Speed</a>**
 
-As our method is implemented using JAX, one advantage is that it is faster than the standard PyTorch library. To show this, we compare the forward pass times of an existing EGNN implementation in PyTorch with our version. The results of which can be seen in the following graph:
+One of the main incentives of building a JAX alternative of the existing work is its advantage of being faster than the standard PyTorch library. As also pointed by the original authors [5], while this approach is more computationally efficient, it is still slower than Linear or GNNs. Thus, the aim is to preserve the properties of the model while also providing a fast alternative. To show this, we compare the forward pass times of the original EGNN implementation in PyTorch [5] with our JAX version. The results of which can be seen in the following graph:
 
 <table align="center">
   <tr align="center">
-      <td><img src="assets/JaxVsPytorchResults.png" width=800></td>
+      <td><img src="assets/speed_performance.png" width=800></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 2.</b> EGNN speed comparison between JAX and PyTorch.</td>
+    <td colspan=2><b>Figure 2.</b> EGNN speed comparison between JAX EGNN (ours) and PyTorch EGNN (model to reproduce [5]). Benchmark results represent a single forward pass averaged over 100 tries. Batch size used here is 32, 64 and 128. We can see great results for the jax implementation across the scale, with less spikes in duration values.</td>
   </tr>
 </table>
 
