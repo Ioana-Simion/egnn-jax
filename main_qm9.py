@@ -57,12 +57,6 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes,
         target = denormalize(target, meann, mad)
     else:
         pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
-    #target = normalize(target, meann, mad) if training else target
-    #pred = normalize(pred, meann, mad) if training else pred
-
-    #target_padded = jnp.pad(target, ((0, h.shape[0] - target.shape[0]), (0, 0)), mode='constant')
-    #pred = pred * node_mask[:, None]
-    #target_padded = target_padded * node_mask[:, None]
 
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
     # TODO no_grad for training = false
@@ -116,7 +110,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
             feat, target = graph_transform_fn(batch)
             x, pos, edge_index, edge_attr, node_mask = feat
-            #node_mask = create_padding_mask(h, x, edges, edge_attr)
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
             loss_item = float(jax.device_get(loss))
             train_loss += loss_item
@@ -249,7 +242,6 @@ if __name__ == "__main__":
     parser.add_argument("--max_samples", type=int, default=3000)
 
     parsed_args = parser.parse_args()
-    #parsed_args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     set_seed(parsed_args.seed)
 
