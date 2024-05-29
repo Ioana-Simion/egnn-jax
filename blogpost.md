@@ -323,7 +323,7 @@ One of the main incentives of building a JAX alternative of the existing work is
   </tr>
 </table> -->
 
-Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
+Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes. 
 
 
 ## **Future Work**
@@ -359,7 +359,7 @@ Notice that the update equation is a one step formula, as opposed to the iterati
 
 Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is reasonably effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and geometric inductive biases.
 
-The reproduction of experiments on the QM9 and N-Body datasets validates the effectiveness of DEMETAr, with our results demonstrating competitive performance with existing state-of-the-art methods and even outperforming many recent implementations in both invariant and equivariant tasks. Furthermore, the implementation of DEMETAr in JAX offers considerable advantages in terms of speed and numerical stability. Our comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
+The reproduction of experiments on the QM9 and N-Body datasets validates the effectiveness of DEMETAr, with our results demonstrating competitive performance with existing state-of-the-art methods and even outperforming many recent implementations in both invariant and equivariant tasks. Furthermore, the implementation of DEMETAr in JAX offers considerable advantages in terms of speed and numerical stability. Our EGNN comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
 
 In summary, DEMETAr provides a robust framework for incorporating equivariance into transformer architectures. The dual encoder approach we introduce not only preserves geometric information but also offers flexibility in input processing, leading to improved performance across various benchmark tasks. The comprehensive evaluation and results highlight its potential in use for related tasks.
 
