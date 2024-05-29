@@ -333,7 +333,7 @@ $$\begin{align}
 Z^0_j &= Z^p_n + Z^r_e.
 \end{align}$$ 
 
-Thus, the output of the combined encoder will have sequence length the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
+Thus, the output of the combined encoder will have a sequence length equal to the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
 
 $$\begin{align} 
 x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(F, E)_{ij},
