@@ -43,17 +43,6 @@ def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, targ
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
-def create_padding_mask(h, x, edges, edge_attr):
-    graph = create_graph(h, x, edges, edge_attr)
-    node_mask = jraph.get_node_padding_mask(graph)
-    manual_node_mask = (h.sum(axis=1) != 0).astype(jnp.float32)
-
-    if node_mask.sum() == 0:
-        node_mask = manual_node_mask
-
-    return node_mask
-
-
 @partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
 def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, 
             target, model_fn, meann, mad, training=True, task="graph"):
