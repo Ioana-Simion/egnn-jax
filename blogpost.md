@@ -10,6 +10,7 @@ This blogpost serves three purposes:
 1. Explain the ideas of equivariance in transformer networks while also explaining some of the methods used.
 2. Provide an overview of some reproduction results for other methods (i.e., the Equivariant Graph Neural Network).
 3. Give an overview of our method and a comparison with the aforementioned reproduction results.
+4. Give an overview of the ablation studies we performed by disabling certain components of the transformer, which were done to demonstrate how adding more equivariances makes the model work better in leveraging the available geometric constraints.
 
 ---
 
@@ -147,7 +148,6 @@ In this dataset, a dynamical system consisting of 5 atoms is modeled in 3D space
 
 This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule.
 
-In addition, we perform some ablation studies by disabling certain components of the transformer. The purpose here is to demonstrate how adding more equivariances does indeed make the model work better in leveraging the available geometric constraints.
 
 ## **<a name="architecture">Evaluating the Models</a>**
 
