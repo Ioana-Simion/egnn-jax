@@ -8,12 +8,13 @@ from tqdm import tqdm
 from flax.training import checkpoints
 from functools import partial
 from qm9.utils import GraphTransform
-from utils.utils import get_model, get_loaders, set_seed, collate_fn, NodeDistance, RemoveNumHs
+from utils.utils import get_model, set_seed, NodeDistance, RemoveNumHs, get_loaders_and_statistics, get_property_index
 import gc
 import json
 from torch_geometric.datasets import QM9
 from torch.utils.data import DataLoader
 import torch_geometric.transforms as T
+from torch.utils.tensorboard import SummaryWriter
 
 # Seeding
 jax_seed = jax.random.PRNGKey(42)
@@ -35,18 +36,18 @@ def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
 @partial(jax.jit, static_argnames=["opt_update", "model_fn"])
-def update(params, edge_attr, node_attr, target, opt_state, rng, model_fn, opt_update):
+def update(params, edge_attr, node_attr, cross_mask, target, opt_state, rng, model_fn, opt_update):
     rng, dropout_rng = jax.random.split(rng)
-    grads = jax.grad(mse_loss)(params, edge_attr, node_attr, target, dropout_rng, model_fn)
-    loss = mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn)
+    grads = jax.grad(mse_loss)(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn)
+    loss = mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state, rng
 
 #use jit again? removed for debugging
-def mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn):
+def mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn):
     variables = {'params': params}
     rngs = {'dropout': dropout_rng}
-    pred = model_fn(variables, edge_attr, node_attr, train=True, rngs=rngs)
+    pred = model_fn(variables, node_attr, edge_attr, None, None, cross_mask=cross_mask, train=True, rngs=rngs)
 
     return jnp.mean((pred - target) ** 2)
 
@@ -58,11 +59,10 @@ def normalize_data(data):
 
 def handle_nan(data):
     """Replace nan and inf values with 0."""
-    data = jnp.where(jnp.isnan(data), 0.0, data)
-    data = jnp.where(jnp.isinf(data), 0.0, data)
+    data = jnp.nan_to_num(data, pos_inf=0, neg_inf=0)
     return data
 
-def evaluate(loader, params, rng, model_fn):
+def evaluate(loader, params, rng, model_fn, property_idx):
     eval_loss = 0.0
     num_batches = len(loader)
     
@@ -71,69 +71,80 @@ def evaluate(loader, params, rng, model_fn):
         return float('inf')  # Return infinity to show issue
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
-        edge_attr, node_attr, _, _, _, target = data
-        edge_attr = normalize_data(jnp.array(edge_attr))
-        node_attr = normalize_data(jnp.array(node_attr))
-        target = jnp.array(target)
+        node_attr, edge_attr, cross_mask, pos, target = data
+        target = target[:, property_idx]
         
         # Handle nan and inf values
-        edge_attr = handle_nan(edge_attr)
-        node_attr = handle_nan(node_attr)
-        target = handle_nan(target)
+        #edge_attr = handle_nan(edge_attr)
+        #node_attr = handle_nan(node_attr)
+        #target = handle_nan(target)
 
         _, dropout_rng = jax.random.split(rng)
-        loss = mse_loss(params, edge_attr, node_attr, target, dropout_rng, model_fn)
+        loss = mse_loss(params, edge_attr, node_attr, cross_mask, target, dropout_rng, model_fn)
         eval_loss += loss
     return eval_loss / num_batches
 
 def train_model(args, model, model_name, checkpoint_path):
-    train_loader, val_loader, test_loader = get_loaders(args, transformer=True)
+    (
+        train_loader, 
+        val_loader, 
+        test_loader, 
+        meann, 
+        mad, 
+        max_num_nodes, 
+        max_num_edges
+    ) = get_loaders_and_statistics(args, transformer=True)
 
-    init_edge_attr, init_node_attr, _, _, _, _ = next(iter(train_loader))
-    init_edge_attr = normalize_data(jnp.array(init_edge_attr))
-    init_node_attr = normalize_data(jnp.array(init_node_attr))
+    property_idx = get_property_index(args.property)
+
+    init_node_attr, init_edge_attr, edge_attn_mask, x, y = next(iter(train_loader))
     opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     rng, init_rng = jax.random.split(jax_seed)
-    params = model.init(init_rng, edge_inputs=init_edge_attr, node_inputs=init_node_attr)['params']
+    params = model.init(init_rng, init_node_attr, init_edge_attr, coords=None, vel=None, cross_mask=edge_attn_mask)['params']
     opt_state = opt_init(params)
 
     train_scores = []
     val_scores = []
     test_loss, best_val_epoch = 0, 0
 
+    global_step = 0
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            edge_attr, node_attr, _, _, _, target = batch
-            edge_attr = normalize_data(jnp.array(edge_attr))
-            node_attr = normalize_data(jnp.array(node_attr))
-            target = jnp.array(target)
+            node_attr, edge_attr, cross_mask, pos, target = batch
+            target = target[:, property_idx]
 
             # Handle nan and inf values
-            edge_attr = handle_nan(edge_attr)
-            node_attr = handle_nan(node_attr)
-            target = handle_nan(target)
+            #edge_attr = handle_nan(edge_attr)
+            #node_attr = handle_nan(node_attr)
+            #target = handle_nan(target)
             
-            loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
-            train_loss += loss
+            loss, params, opt_state, rng = update(params=params, edge_attr=edge_attr, node_attr=node_attr, cross_mask=cross_mask, target=target, opt_state=opt_state, rng=rng, model_fn=model.apply, opt_update=opt_update)
+            loss_item = float(jax.device_get(loss))
+            train_loss += loss_item
+            writer.add_scalar('Loss/train', loss_item, global_step=global_step)
 
             # Manually trigger garbage collection
             gc.collect()
             jax.clear_caches()
+            
+            global_step += 1
 
         train_loss /= len(train_loader)
-        train_scores.append(float(jax.device_get(train_loss)))
+        train_scores.append(train_loss)
+        writer.add_scalar('AvgLoss/train', train_loss, global_step=global_step)
 
         if epoch % args.val_freq == 0:
-            val_loss = evaluate(val_loader, params, rng, model.apply)
-            val_scores.append(float(jax.device_get(val_loss)))
-            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
-
+            val_loss = evaluate(val_loader, params, rng, model.apply, property_idx)
+            val_loss_item = float(jax.device_get(val_loss))
+            val_scores.append(val_loss_item)
+            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss_item:.6f}")
+            writer.add_scalar('Loss/val', val_loss_item, global_step=global_step)
             if len(val_scores) == 1 or val_loss < min(val_scores):
                 print("\t   (New best performance, saving model...)")
                 save_model(params, checkpoint_path, model_name)
                 best_val_epoch = len(val_scores) - 1
-                test_loss = evaluate(test_loader, params, rng, model.apply)
+                test_loss = evaluate(test_loader, params, rng, model.apply, property_idx)
                 jax.clear_caches()
 
     if val_scores:
@@ -205,6 +216,8 @@ if __name__ == "__main__":
     parsed_args = parser.parse_args()
 
     set_seed(parsed_args.seed)
+    
+    writer = SummaryWriter(log_dir="runs", flush_secs=10)
 
     model = get_model(parsed_args)
     train_model(parsed_args, model, parsed_args.model_name, "assets")

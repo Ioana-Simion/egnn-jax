@@ -12,7 +12,8 @@ from torch.nn.utils.rnn import pad_sequence
 from torch_geometric.loader import DataLoader as GDataLoader
 import torch.nn.functional as F
 from argparse import Namespace
-
+from models.utils import batched_mask_from_edges    
+import jax.numpy as jnp
 
 class NodeDistance:
     def __init__(self, normalize=False) -> None:
@@ -46,6 +47,47 @@ def collate_fn(data_list):
     pos = [d.pos for d in data_list]
 
     return x, edge_attr, pos, mask, edge_mask, y
+
+def get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges):
+
+    def _collate_fn(data_list):
+        x = [d.x for d in data_list]
+        x[0] = torch.cat([x[0], torch.zeros(max_num_nodes - x[0].size(0), x[0].size(1))], dim=0)
+        x = pad_sequence(x, batch_first=True, padding_value=0.0)
+
+        # Normalize target
+        y = torch.stack([normalize(d.y, meann, mad) for d in data_list]).squeeze(1)
+
+        edge_index = []
+        start_idx = 0
+        for d in data_list:
+            num_edges = d.edge_index.size(1)
+            padded_edges = torch.cat([d.edge_index, torch.full((2, max_num_edges - num_edges), -1)], dim=1)
+            padded_edges = torch.where(padded_edges != -1, padded_edges + start_idx, padded_edges)
+            edge_index.append(padded_edges)
+            start_idx += num_edges
+        edge_index = jnp.array(torch.stack(edge_index))
+        edge_attn_mask = batched_mask_from_edges(edge_index, max_num_nodes, max_num_edges)
+
+        edge_attr = [d.edge_attr for d in data_list]
+        edge_attr[0] = torch.cat([edge_attr[0], torch.zeros(max_num_edges - edge_attr[0].size(0), edge_attr[0].size(1))], dim=0)
+        edge_attr = pad_sequence(edge_attr, batch_first=True, padding_value=0.0)
+
+        
+        pos = [d.pos for d in data_list]
+        pos[0] = torch.cat([pos[0], torch.zeros(max_num_nodes - pos[0].size(0), pos[0].size(1))], dim=0)
+        pos = pad_sequence(pos, batch_first=True, padding_value=0.0)
+        
+        #node_mask = torch.where(x.sum(dim=-1) == 0, 1, 0)
+        #edge_mask = torch.where(edge_attr.sum(dim=-1) == 0, 1, 0)
+
+        x = jnp.array(x.numpy())
+        edge_attr = jnp.array(edge_attr.numpy())
+        pos = jnp.array(pos.numpy())
+        y = jnp.array(y.numpy())
+        return x, edge_attr, edge_attn_mask, pos, y
+    return _collate_fn
+
 
 def get_collate_fn_egnn(dataset, meann, mad, max_num_nodes, max_num_edges):
 
@@ -204,9 +246,11 @@ def get_loaders_and_statistics(
             num_val = (len(dataset) - num_train) // 2
             num_test = len(dataset) - num_train - num_val
 
-            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
-            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn)
-            test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn)
+            collate_fn_egnn_transformer = get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges)
+
+            train_loader = DataLoader(dataset[:num_train], batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn_egnn_transformer)
+            val_loader = DataLoader(dataset[num_train:num_train+num_val], batch_size=args.batch_size, collate_fn=collate_fn_egnn_transformer)
+            test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn_egnn_transformer)
 
         else:
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
