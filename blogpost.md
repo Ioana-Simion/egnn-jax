@@ -354,7 +354,7 @@ In summary, DEMETAr provides a robust framework for incorporating equivariance i
 
 ## **Authors' Contributions**
 
-- Ioana: Code implementation and debugging, running the code for results, creating the figures.
+- Ioana: Code implementation and debugging, running the code for results, coming up with ideas, creating the speed performance test and figures.
 - Stefan: Code and dataloader implementation and debugging, coming up with the ideas and formulae.
 - Jonas: Code implementation and debugging, proposal writing, comparing implementations and searching for ideas, running the code for results.
 - Gregory: Code documentation, dependency setup, assisting with comparing implementations and searching for ideas, blogpost writing.
