@@ -46,6 +46,11 @@ def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, targ
 @partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
 def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, 
             target, model_fn, meann, mad, training=True, task="graph"):
+    """
+    Logic is : while training normalize the targets (we do this in collate)
+               while evaluating denormalize the predictions
+               we denormalize the target too because we normalize it in collate
+    """
     if not training:
         pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
         pred = denormalize(pred, meann, mad)
