@@ -301,16 +301,16 @@ Another aspect that is very interesting, is to see that the Node-only encoder ap
 
 ## **<a name="speed">Comparison of Speed</a>**
 
-As our method is implemented using JAX, one advantage is that it is faster than the standard PyTorch library. To show this, we compare the forward pass times of an existing implementation in PyTorch with our implementation. The results of which can be seen in the following graph:
+As our method is implemented using JAX, one advantage is that it is faster than the standard PyTorch library. To show this, we compare the forward pass times of an existing EGNN implementation in PyTorch with our version. The results of which can be seen in the following graph:
 
-<!-- <table align="center">
+<table align="center">
   <tr align="center">
-      <td><img src="assets/speed.png" width=800></td>
+      <td><img src="assets/JaxVsPytorchResults.png" width=800></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 1.</b> The Markov process of diffusing noise and denoising [5].</td>
+    <td colspan=2><b>Figure 2.</b>EGNN speed comparison between JAX and PyTorch.</td>
   </tr>
-</table> -->
+</table>
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
@@ -346,11 +346,11 @@ Notice that the update equation is a one step formula, as opposed to the iterati
 
 ## **Concluding Remarks**
 
-Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is quite effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and domain-specific inductive biases.
+Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is reasonably effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and geometric inductive biases.
 
 The reproduction of experiments on the QM9 and N-Body datasets validates the effectiveness of DEMETAr, with our results demonstrating competitive performance with existing state-of-the-art methods and even outperforming many recent implementations in both invariant and equivariant tasks. Furthermore, the implementation of DEMETAr in JAX offers considerable advantages in terms of speed and numerical stability. Our comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
 
-In summary, DEMETAr provides a robust framework for incorporating equivariance into transformer architectures. The dual encoder approach we introduce not only preserves geometric information but also offers flexibility in input processing, leading to improved performance across various benchmark tasks. The comprehensive evaluation and competitive results highlight its potential in use for related tasks.
+In summary, DEMETAr provides a robust framework for incorporating equivariance into transformer architectures. The dual encoder approach we introduce not only preserves geometric information but also offers flexibility in input processing, leading to improved performance across various benchmark tasks. The comprehensive evaluation and results highlight its potential in use for related tasks.
 
 ## **Authors' Contributions**
 
