@@ -64,7 +64,7 @@ This idea of using the distances during computation forms one of the bases of ou
 
 <table align="center">
   <tr align="center">
-      <td><img src="assets/DEMETAr_transparent.png" width=800></td>
+      <td><img src="assets/DEMETAr.png" width=800></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 1.</b> Visualization of the DEMETAr architecture.</td>
