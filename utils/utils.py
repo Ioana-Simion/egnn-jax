@@ -242,9 +242,13 @@ def get_loaders_and_statistics(
             meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
             max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
 
+            #reproduction study values
             num_train = 100000
-            num_val = (len(dataset) - num_train) // 2
-            num_test = len(dataset) - num_train - num_val
+            num_val = 18000
+            num_test = 13000
+            #num_train = 100000
+            #num_val = (len(dataset) - num_train) // 2
+            #num_test = len(dataset) - num_train - num_val
 
             collate_fn_egnn_transformer = get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges)
 
