@@ -135,24 +135,25 @@ Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(F_i)\\
 &=Qx_i^{update}+g\\
 \end{align}$$
 
-Our dual encoder system is equivariant is through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, the attention mechanism in our transformers uses adjacency masking to ensure that attention is only paid to connected nodes and edges, which inherently respects the graph structure and maintains the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
+Our dual encoder system is equivariant through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, our transformers uses adjacency masking in the attention mechanism to ensure that attention is only paid to connected nodes and edges. This makes it inherently respect the graph structure and maintain the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
 
 ### **Experiments**
 
-#### N-body dataset
+#### **N-Body dataset**
 
 In this dataset, a dynamical system consisting of 5 atoms is modeled in 3D space. Each atom has a positive and negative charge, a starting position and a starting velocity. The task is to predict the position of the particles after 1000 time steps. The movement of the particles follow the rules of physics: Same charges repel and different charges attract. The task is equivariant in the sense, that translating and rotating the 5-body system on the input space is the same as rotating the output space.
 
-#### QM9 dataset
+#### **QM9 dataset**
 
 This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule.
 
+In addition, we perform some ablation studies by disabling certain components of the transformer. The purpose here is to demonstrate how adding more equivariances does indeed make the model work better in leveraging the available geometric constraints.
 
 ## **<a name="architecture">Evaluating the Models</a>**
 
 As a baseline, we compare our dual encoder transformer to varying architectures, with the first being from \[5\] as it is generally the best performing model. In addition, we also show the baseline performance reported in QM9 to show how our transformer fares with other transformer methods, specifically compared with that of \[7\] as it outperforms many other implementations in the benchmarks tasks (i.e., QM9) due to utilizing radial basis functions to expand the interatomic distances and adjusting the transformer operations to acommodate to these modified distances naturally.
 
-For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-body \[14\] datasets. The former is a task which involves predicting quantum chemical properties (at DFT level) of small organic molecules and is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data, as it involves predicting the positions of particles depending on the charges and velocities.
+For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-Body \[14\] datasets. The former is a task which involves predicting quantum chemical properties (at DFT level) of small organic molecules and is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data, as it involves predicting the positions of particles depending on the charges and velocities.
 
 In addition, an ablation study is conducted to evaluate the performance of our method when parts of it are disabled, which is further detailed below.
 
@@ -181,11 +182,11 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   </tr>
 </table>
 
-Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
+Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-Body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
-Meanwhile, when comparing with other transformer implementations, we see based on the below results that our method is comparable to other approaches that have been published recently in the past few years for both QM9 and N-body. 
+Meanwhile, when comparing with other transformer implementations, we see based on the below results that our method is comparable to other approaches that have been published recently in the past few years for both QM9 and N-Body. 
 
 <table align="center">
   <tr align="center">
@@ -238,9 +239,65 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">0.050895</td>
   </tr>
   <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of results for the N-body task, taken from [18].</td>
+    <td colspan=9><b>Table 3.</b> Comparison of results for the N-Body task, taken from [18].</td>
   </tr>
 </table>
+
+## **<a name="ablation">Ablation studies</a>**
+
+### **Comparison of different Equivariances on the N-Body dataset.**
+
+Here, we compare 4 different transformer architectures. The first is a standard transformer (not equivariant) that uses the positions as input to predict the final positions. Furthermore, we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass. All models were trained for 40 epochs.
+
+<table align="center">
+  <tr align="center">
+      <th align="left"></th>
+      <th align="left">Standard Transformer</th>
+      <th align="left">Translation Equivariant Transformer</th>
+      <th align="left">Translation Rotation Equivariant Transformer \w Center of Mass</th>
+    <th align="left">translation Rotation Equivariant Transformer \w Velocity</th>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>x</sub></td>
+    <td align="left">1.259675</td>
+    <td align="left">0.364862</td>
+    <td align="left">0.313850</td>
+    <td align="left">0.050895</td>
+  </tr>
+  <tr align="left">
+    <td colspan=9><b>Table 3.</b> Comparison of different equivariances on the N-Body dataset.</td>
+  </tr>
+</table>
+
+The standard transformer acts as the baseline. Its low performance highlights the need for equivariance for this task, as it has issues generalising, possibly due to rotated and translated examples within a dataset. The second model, which is translation equivariant, performs better. Despite this, it is outperformed by models which are both translation and rotation equivariant. These dually equivariant models can fully learn the rules of the dynamical system while not being restricted to struggling with learning how rotations also influence the dynamical system, proving that models incorporating equivariance outperform those that do not. Furthermore, we show that not all equivariant approaches are equally expressive.
+
+### **Comparison of different Transformer Architectures**
+
+Different types of architectures for the transformer are compared on the roto-translation velocity model. The hyper-parameters (hidden dimensions, number of encoders) of the models in the table were varied so that all models have around 100k parameters.
+
+<table align="center">
+  <tr align="center">
+      <th align="left"></th>
+      <th align="left">Node only Encoder Dim 128</th>
+    <th align="left">Node only 4 Encoder Blocks</th>
+      <th align="left">Edge Cross Attention</th>
+      <th align="left">Double Encoder</th>
+  </tr>
+  <tr align="center">
+    <td align="left">MSE<sub>x</sub></td>
+    <td align="left">0.050895</td>
+    <td align="left">0.051638</td>
+    <td align="left">0.040679</td>
+    <td align="left">0.050895</td>
+  </tr>
+  <tr align="left">
+    <td colspan=9><b>Table 3.</b> Comparison of different transformer architectures on the N-Body dataset for the translation rotation equivariant Transformer using velocity.</td>
+  </tr>
+</table>
+
+Both Node-only encoder approaches perform very similarly, leading to the conclusion that they are able to capture the information that lies within the nodes. The best performing model uses an embedding layer for the edge features, a node encoder built on top of a node embedding layer, both which get put into a cross attention layer. This layer enriches the node space with edge information directly, while the double encoder appraoch uses an encoder between the edge embedding and the cross attention layer.
+
+Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. The double encoder approach enriches the node space with information from the edge space. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390. The biggest constraint in our model development are the computational ressources, because of which only limited experiments were ran with a limited set of hyperparameters. 
 
 ## **<a name="speed">Comparison of Speed</a>**
 
@@ -257,76 +314,23 @@ As our method is implemented using JAX, one advantage is that it is faster than 
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
-## **<a name="ablation">Ablation studies</a>**
-
-### **Comparison of different Equivariances on the N-body dataset.**
-
-Here, we compare 4 different transformer architectures. The first is a standard transformer (not equivariant) that uses the positions as input to predict the final positions. Furthermore, we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass. All models were trained for 40 epochs.
-
-<table align="center">
-  <tr align="center">
-      <th align="left"></th>
-      <th align="left">standard Transformer</th>
-      <th align="left">translation equivariant Transformer</th>
-      <th align="left">translation rotation equivariant Transformer center of mass</th>
-    <th align="left">translation rotation equivariant Transformer velocity</th>
-  </tr>
-  <tr align="center">
-    <td align="left">MSE<sub>x</sub></td>
-    <td align="left">1.259675</td>
-    <td align="left">0.364862</td>
-    <td align="left">0.313850</td>
-    <td align="left">0.050895</td>
-  </tr>
-  <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of different equivariances on the N-body dataset.</td>
-  </tr>
-</table>
-
-The baseline performance is the standard transformer. The bad performance highlights the need for equivariance for this task. The transformer has issues generalising, possibly to rotated and translated examples within a dataset. The second model, which is translation equivariant performs better however it is outperformed by models which are translation and rotation equivariant. By introducing roto translation equivariant models, they can fully learn the rules of the dynamical system while not being restricted to struggling with learning how rotations also influence the dynamical system. It is demonstrated, that models incorporating equivariance outperform those that do not. Furthermore we show that not all equivariant approaches are equally expressive.
-
-### **Comparison of different Transformer Architectures**
-
-Different types of architectures for the transformer are compared on the roto-translation velocity model. The hyper-parameters (hidden dimensions, number of encoders) of the models in the table were varied so that all models have around 100k parameters.
-
-<table align="center">
-  <tr align="center">
-      <th align="left"></th>
-      <th align="left">Node only encoder dim 128</th>
-    <th align="left">Node only 4 encoder blocks</th>
-      <th align="left">Edge Cross Attention</th>
-      <th align="left">Double Encoder</th>
-  </tr>
-  <tr align="center">
-    <td align="left">MSE<sub>x</sub></td>
-    <td align="left">0.050895</td>
-    <td align="left">0.051638</td>
-    <td align="left">0.040679</td>
-    <td align="left">0.050895</td>
-  </tr>
-  <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of different transformer architectures on the N-body dataset for the translation rotation equivariant Transformer using velocity.</td>
-  </tr>
-</table>
-
-Both Node-only encoder approaches, perform very similar, leading to the conclusion that both are able to capture the information that lies within the nodes. The best performing model, uses an embedding layer for the edge features, a node encoder built on top of a node embedding layer, both which get put into a cross attention layer. This layer enriches the node space with edge information directly, while the double encoder appraoch uses an encoder between the edge embedding and the cross attention layer.
-Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. The double encoder approach enriches the node space with information from the edge space. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390. The biggest constraint in our model development are the computational ressources, because of which only limited experiments were ran with a limited set of hyperparameters. 
 
 ## **Future Work**
-In this section we would like to outline out theoretical vision for a method closer to the EGNN method but a still transformer. Since we did not have time to execute it in practice, this is only a theoretical overview.
 
-A limitation to our method is that while equvariant, it does not cover the entire space of possible roto-translations, if we were to model them (as in the NBody dataset). To tackle this issue, a true E(3)-equivariant transformer could be constructed as follows.
+In this section, we outline our theoretical vision for a method closer to the EGNN method but a still transformer. Since we did not have time to execute it in practice, this is only a theoretical overview.
+
+A limitation to our method is that while equvariant, it does not cover the entire space of possible roto-translations, if we were to model them (as in the N-Body dataset). To tackle this issue, a true E(3)-equivariant transformer could be constructed as follows:
 
 First, the original proposed method should be modified to work in the edge space, as opposed to the node space. This means that Equation 9 will now have node keys and values and edge queries:
 
 $$\begin{align} 
-Z^p_n = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}},
+Z^p_n = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}}.
 \end{align}$$
 
-Then, the summation of Equation 11 will be:
+Then, the summation of Equation 11 will become:
 
 $$\begin{align} 
-Z^0_j &= Z^p_n + Z^r_e,
+Z^0_j &= Z^p_n + Z^r_e.
 \end{align}$$ 
 
 Thus, the output of the combined encoder will have sequence length the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
@@ -336,12 +340,15 @@ x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(F, 
 \end{align}$$ 
 
 where $F$ and $E$ are the node and edge feature matrices. 
-Notice that the update equation is a one step formula, as opposed to the iterative update in the EGNN forumla. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
+
+Notice that the update equation is a one step formula, as opposed to the iterative update in the EGNN formula. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
+
+
 ## **Concluding Remarks**
 
 Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is quite effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and domain-specific inductive biases.
 
-The reproduction of experiments on the QM9 and N-body datasets validates the effectiveness of DEMETAr, with our results demonstrating competitive performance with existing state-of-the-art methods and even outperforming many recent implementations in both invariant and equivariant tasks. Furthermore, the implementation of DEMETAr in JAX offers considerable advantages in terms of speed and numerical stability. Our comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
+The reproduction of experiments on the QM9 and N-Body datasets validates the effectiveness of DEMETAr, with our results demonstrating competitive performance with existing state-of-the-art methods and even outperforming many recent implementations in both invariant and equivariant tasks. Furthermore, the implementation of DEMETAr in JAX offers considerable advantages in terms of speed and numerical stability. Our comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
 
 In summary, DEMETAr provides a robust framework for incorporating equivariance into transformer architectures. The dual encoder approach we introduce not only preserves geometric information but also offers flexibility in input processing, leading to improved performance across various benchmark tasks. The comprehensive evaluation and competitive results highlight its potential in use for related tasks.
 
