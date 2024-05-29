@@ -96,7 +96,6 @@ def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad
     for data in tqdm(loader, desc="Evaluating", leave=False):
         feat, target = graph_transform(data)
         h, x, edges, edge_attr, node_mask = feat
-        node_mask = create_padding_mask(h, x, edges, edge_attr)
         loss = loss_fn(params, h, edge_attr, edges, x, node_mask, max_num_nodes, target, meann=meann, mad=mad, training=False)
         #loss = loss_fn(params, h, edge_attr, edges, x, target, node_mask=node_mask, max_num_nodes=max_num_nodes, meann=meann, mad=mad, training=False)
         eval_loss += loss
