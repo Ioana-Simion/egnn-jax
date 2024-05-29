@@ -303,14 +303,25 @@ Another aspect that is very interesting, is to see that the Node-only encoder ap
 
 One of the main incentives of building a JAX alternative of the existing work is its advantage of being faster than the standard PyTorch library. As also pointed by the original authors [5], while this approach is more computationally efficient, it is still slower than Linear or GNNs. Thus, the aim is to preserve the properties of the model while also providing a fast alternative. To show this, we compare the forward pass times of the original EGNN implementation in PyTorch [5] with our JAX version. The results of which can be seen in the following graph:
 
+
 <table align="center">
+  <tr align="center">
+    <td><img src="assets/jaxVsPytorch32.png" width="300"></td>
+    <td><img src="assets/jaxvspytorch64.png" width="300"></td>
+    <td><img src="assets/jaxvspytorch128.png" width="300"></td>
+  </tr>
+  <tr align="center">
+    <td colspan="3"><b>Figure 2.</b> EGNN speed comparison between JAX EGNN (ours) and PyTorch EGNN (model to reproduce [5]). Benchmark results represent a single forward pass averaged over 100 tries. Batch size used here is 32, 64 and 128. We can see great results for the jax implementation across the scale, with less spikes in duration values.</td>
+  </tr>
+</table>
+<!-- <table align="center">
   <tr align="center">
       <td><img src="assets/speed_performance.png" width=800></td>
   </tr>
   <tr align="left">
     <td colspan=2><b>Figure 2.</b> EGNN speed comparison between JAX EGNN (ours) and PyTorch EGNN (model to reproduce [5]). Benchmark results represent a single forward pass averaged over 100 tries. Batch size used here is 32, 64 and 128. We can see great results for the jax implementation across the scale, with less spikes in duration values.</td>
   </tr>
-</table>
+</table> -->
 
 Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes.
 
