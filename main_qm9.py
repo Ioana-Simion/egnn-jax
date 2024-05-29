@@ -255,4 +255,4 @@ if __name__ == "__main__":
     writer = SummaryWriter(log_dir="runs", flush_secs=10)
 
     model = get_model(parsed_args)
-    train_model(parsed_args, model, graph_transform, "test", "assets")
+    train_model(parsed_args, model, graph_transform, "qm9_EGNN", "assets")
