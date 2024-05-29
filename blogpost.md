@@ -308,7 +308,7 @@ As our method is implemented using JAX, one advantage is that it is faster than 
       <td><img src="assets/JaxVsPytorchResults.png" width=800></td>
   </tr>
   <tr align="left">
-    <td colspan=2><b>Figure 2.</b>EGNN speed comparison between JAX and PyTorch.</td>
+    <td colspan=2><b>Figure 2.</b> EGNN speed comparison between JAX and PyTorch.</td>
   </tr>
 </table>
 
