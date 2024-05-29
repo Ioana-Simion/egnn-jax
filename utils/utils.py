@@ -259,9 +259,13 @@ def get_loaders_and_statistics(
         else:
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
             
+            #reproduction study values
             num_train = 100000
-            num_val = (len(dataset) - num_train) // 2
-            num_test = len(dataset) - num_train - num_val
+            num_val = 18000
+            num_test = 13000
+            # num_train = 100000
+            # num_val = (len(dataset) - num_train) // 2
+            # num_test = len(dataset) - num_train - num_val
 
             meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
             max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
