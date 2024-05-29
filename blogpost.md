@@ -255,7 +255,7 @@ Here, we compare 4 different transformer architectures. The first is a standard 
       <th align="left">Standard Transformer</th>
       <th align="left">Translation Equivariant Transformer</th>
       <th align="left">Translation Rotation Equivariant Transformer \w Center of Mass</th>
-    <th align="left">translation Rotation Equivariant Transformer \w Velocity</th>
+    <th align="left">Translation Rotation Equivariant Transformer \w Velocity</th>
   </tr>
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
@@ -277,11 +277,11 @@ Different types of architectures for the transformer are compared on the roto-tr
 
 <table align="center">
   <tr align="center">
-      <th align="left"></th>
-      <th align="left">Node only Encoder Dim 128</th>
+    <th align="left"></th>
+    <th align="left">Node only Encoder Dim 128</th>
     <th align="left">Node only 4 Encoder Blocks</th>
-      <th align="left">Edge Cross Attention</th>
-      <th align="left">Double Encoder</th>
+    <th align="left">Edge Cross Attention</th>
+    <th align="left">Double Encoder</th>
   </tr>
   <tr align="center">
     <td align="left">MSE<sub>x</sub></td>
