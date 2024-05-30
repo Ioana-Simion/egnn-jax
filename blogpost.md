@@ -182,7 +182,7 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   </tr>
 </table>
 
-<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not learn the specific molecule properties well.</sup>
+<sup>*Currently, the result is influenced by the large batch size, causing it to not learn the specific molecule properties well.</sup>
 
 Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-Body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
 
@@ -221,7 +221,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
   </tr>
 </table>
 
-<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not learn the specific molecule properties well.</sup>
+<sup>*Currently, the result is influenced by the large batch size, causing it to not learn the specific molecule properties well.</sup>
 
 
 <table align="center">
@@ -359,6 +359,8 @@ x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(F, 
 where $F$ and $E$ are the node and edge feature matrices. 
 
 Notice that the update equation is a one step formula, as opposed to the iterative update in the EGNN formula. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
+
+Furthermore, due to time constraints, bottlenecks were encountered which ultimately necessitated the use of a larger batch size (8192) for our experiments. This hampered performance as the batch size acts as a type of regularization on the data.
 
 
 ## **Concluding Remarks**
