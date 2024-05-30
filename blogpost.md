@@ -182,7 +182,7 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   </tr>
 </table>
 
-<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not regularize on the dataset well.</sup>
+<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not learn the specific molecule properties well.</sup>
 
 Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-Body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
 
@@ -221,7 +221,7 @@ Meanwhile, when comparing with other transformer implementations, we see based o
   </tr>
 </table>
 
-<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not regularize on the dataset well.</sup>
+<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not learn the specific molecule properties well.</sup>
 
 
 <table align="center">
