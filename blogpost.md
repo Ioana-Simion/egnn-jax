@@ -47,7 +47,7 @@ $$\begin{align}
 \mathbf{h}\_i^{l+1} = \varphi_h (\mathbf{h}\_i^l, \mathbf{m}\_i), & \qquad \qquad \text{(Equation 4)}
 \end{align}$$
 
-where $\mathbf{h}\_i^l \in \mathbb{R}^{nf}$ nf is the nf-dimensional embedding of node $v_i$ at layer $l$, $a_{ij}$ are the edge attributes, $\mathcal{N}\_i$ is the set of neighbors of node $v_i$, and $\varphi_e$ and $\varphi_h$ are the
+where $\mathbf{h}\_i^l \in \mathbb{R}^{nf}$ is the nf-dimensional embedding of node $v_i$ at layer $l$, $a_{ij}$ are the edge attributes, $\mathcal{N}\_i$ is the set of neighbors of node $v_i$, and $\varphi_e$ and $\varphi_h$ are the
 edge and node operations respectively, typically approximated by Multilayer Perceptrons (MLPs).
 
 In order to make this implementation equivariant, \[5\] introduced the inputting of the relative squared distances between two points and updating of the node positions at each time step, leading to the following formulae:
