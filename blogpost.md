@@ -4,7 +4,7 @@
 
 ---
 
-This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately (which we implement in JAX mostly from scratch). This allows for more flexibility in the inputs we provide.
+This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately (which we implement in JAX mostly from scratch). This allows for more flexibility in the inputs we provide and ease of configurability for any task which can utilize graphs.
 
 This blogpost serves three purposes: 
 1. Explain the ideas of equivariance in transformer networks while also explaining some of the methods used.
@@ -22,7 +22,7 @@ Following these works, more efficient implementations have emerged, with the fir
 
 More recently, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness for tackling such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches.
 
-Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, which are afterwards combined to a common embedding space. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
+Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, which are afterwards combined to a common embedding space. Such an approach was chosen because we wanted to leverage this information that was generally discarded by other similar implementations. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
 
 
 ## **<a name="recap">Recap of Equivariance</a>**
@@ -146,8 +146,7 @@ In this dataset, a dynamical system consisting of 5 atoms is modeled in 3D space
 
 ### **QM9 dataset**
 
-This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule.
-
+This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule. In addition, larger batch sizes were also experimented with due to smaller sizes causing bottlenecks during training. 
 
 ## **<a name="architecture">Evaluating the Models</a>**
 
@@ -156,6 +155,7 @@ As a baseline, we compare our dual encoder transformer to varying architectures,
 For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-Body \[14\] datasets. The former is a task which involves predicting quantum chemical properties (at DFT level) of small organic molecules and is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data, as it involves predicting the positions of particles depending on the charges and velocities.
 
 In addition, an ablation study is conducted to evaluate the performance of our method when parts of it are disabled, which is further detailed below.
+
 
 ## **<a name="reproduction">Reproduction Results</a>**
 
@@ -170,7 +170,7 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   <tr align="center">
     <td align="left"> QM9 (ε<sub>HOMO</sub>) (meV)</td>
     <td align="left">29</td>
-    <td align="left"></td>
+    <td align="left">275*</td>
   </tr>
   <tr align="center">
     <td align="left">N-Body (Position MSE)</td>
@@ -182,7 +182,10 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   </tr>
 </table>
 
+<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not regularize on the dataset well.</sup>
+
 Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-Body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
+
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
@@ -211,12 +214,14 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">40</td>
     <td align="left">35.0</td>
     <td align="left">20.3</td>
-    <td align="left"></td>
+    <td align="left">290*</td>
   </tr>
   <tr align="left">
     <td colspan=10><b>Table 2.</b> Comparison of results for QM9, taken from [7, 18].</td>
   </tr>
 </table>
+
+<sup>*Currently, the result is influenced by the large batch size (8192), causing it to not regularize on the dataset well.</sup>
 
 
 <table align="center">
@@ -270,6 +275,7 @@ Here, we compare 4 different transformer architectures. The first is a standard 
 </table>
 
 The standard transformer acts as the baseline. Its low performance highlights the need for equivariance for this task, as it has issues generalising, possibly due to rotated and translated examples within a dataset. The second model, which is translation equivariant, performs better. Despite this, it is outperformed by models which are both translation and rotation equivariant. These dually equivariant models can fully learn the rules of the dynamical system while not being restricted to struggling with learning how rotations also influence the dynamical system, proving that models incorporating equivariance outperform those that do not. Furthermore, we show that not all equivariant approaches are equally expressive.
+
 
 ### **Comparison of different Transformer Architectures**
 
