@@ -47,9 +47,9 @@ def TransformDLBatches(property_idx):
     targets: Selected target property (dataset.y[:, property_idx])
     """
     def _to_jax(data):
-        
+
         data = (jnp.array(np.array(x)) for x in data)
-        nodes, edge_attr, edge_index, pos, targets = data
+        nodes, edge_attr, edge_index, pos, targets, node_mask, edge_mask = data
     
         node_mask = (nodes.sum(axis=1) != 0).astype(jnp.float32)
         targets = targets[:, property_idx]  # Select property to optimize for

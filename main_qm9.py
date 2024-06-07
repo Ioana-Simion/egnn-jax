@@ -45,13 +45,18 @@ def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, targ
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
 def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, target, model_fn, meann, mad, training=True, task="graph"):
+    #jax.debug.print("Targets without normalization: {}", target)
     if not training:
-        pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, None, node_mask, max_num_nodes)[0])
-        pred = denormalize(pred, meann, mad)
-        target = denormalize(target, meann, mad)
+        pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
+        pred = mad * pred + meann
     else:
-        pred = model_fn(params, h, pos, edge_index, None, node_mask, max_num_nodes)[0]
-
+        pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
+        target = (target - meann)/ mad
+    
+    #jax.debug.print("Predictions: {}", pred)
+    #print(pred.shape)
+    #jax.debug.print("Targets: {}", target)
+    #print(target.shape)
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
     return jnp.mean(jnp.abs(pred - target))
 
@@ -72,8 +77,8 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     mad = jnp.maximum(mad, 1e-6)
     print(f"Mean: {meann}, MAD: {mad}")
 
-    init_feat, _ = graph_transform_fn(next(iter(train_loader)))
-
+    #init_feat, _ = graph_transform_fn(next(iter(train_loader)))
+    init_feat, target = graph_transform_fn(next(iter(train_loader)))
     lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs)
 
     opt_init, opt_update = optax.chain(
@@ -95,7 +100,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            # Move tensors to GPU if available
             #batch = tuple(batch)
             feat, target = graph_transform_fn(batch)
             x, pos, edge_index, edge_attr, node_mask = feat
@@ -123,8 +127,9 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 print("\t   (New best performance, saving model...)")
                 best_val_loss = val_loss_item
                 save_model(params, checkpoint_path, model_name)
-                test_loss = eval_fn(test_loader, params, max_num_nodes)
-                jax.clear_caches()
+            test_loss = eval_fn(test_loader, params, max_num_nodes)
+            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
+            jax.clear_caches()
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, "
           f"Validation loss: {best_val_loss:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
@@ -179,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
     parser.add_argument("--charge_power", type=int, default=2, help="Maximum power to take into one-hot features")
-    parser.add_argument("--charge_scale", type=float, default=1.0, help="Scale for normalizing charges")
+    parser.add_argument("--charge_scale", type=float, default=9, help="Scale for normalizing charges")
 
     parsed_args = parser.parse_args()
 
@@ -193,9 +198,7 @@ if __name__ == "__main__":
     from torch_geometric.datasets import QM9
 
     dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
-    max_charge = compute_max_charge(dataset)
-    print(f"Maximum charge value in the dataset: {max_charge}")
-    parsed_args.charge_power = max_charge
+    #parsed_args.charge_power = max_charge
 
     graph_transform = TransformDLBatches
 

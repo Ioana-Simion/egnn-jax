@@ -170,7 +170,7 @@ if __name__ == "__main__":
     n_feat = 1
     x_dim = 3
     charge_power = 2
-    charge_scale = 1.0
+    charge_scale = 9
 
     # Dummy variables h, x and fully connected edges
     charges = jnp.array([0, 1, 2, 0, 1, 2, 0, 1])
