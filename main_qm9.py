@@ -8,10 +8,10 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from functools import partial
-from qm9.utils import GraphTransform, TransformDLBatches
+from qm9.utils import GraphTransform, TransformDLBatches, RemoveNumHs
 from flax.training import checkpoints
 from typing import Callable
-from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, denormalize, normalize
+from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, denormalize, normalize, compute_max_charge
 import gc
 from optax import cosine_decay_schedule
 from torch.utils.tensorboard import SummaryWriter
@@ -38,20 +38,13 @@ def _get_result_file(model_path, model_name):
 
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update", "max_num_nodes"])
 def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target, opt_state, loss_fn, opt_update):
-    #using jax grad only instead of value and grad
     grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target)
     loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
-def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, 
-            target, model_fn, meann, mad, training=True, task="graph"):
-    """
-    Logic is : while training normalize the targets (we do this in collate)
-               while evaluating denormalize the predictions
-               we denormalize the target too because we normalize it in collate
-    """
+def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, target, model_fn, meann, mad, training=True, task="graph"):
     if not training:
         pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, None, node_mask, max_num_nodes)[0])
         pred = denormalize(pred, meann, mad)
@@ -60,7 +53,6 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes,
         pred = model_fn(params, h, pos, edge_index, None, node_mask, max_num_nodes)[0]
 
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
-    # TODO no_grad for training = false
     return jnp.mean(jnp.abs(pred - target))
 
 def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad, task="graph"):
@@ -81,12 +73,12 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     print(f"Mean: {meann}, MAD: {mad}")
 
     init_feat, _ = graph_transform_fn(next(iter(train_loader)))
+
     lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs)
 
     opt_init, opt_update = optax.chain(
         optax.adamw(learning_rate=lr_schedule, weight_decay=args.weight_decay)
     )
-    #opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     params = model.init(jax_seed, *init_feat, max_num_nodes)
     opt_state = opt_init(params)
 
@@ -103,7 +95,8 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            batch = tuple(tensor.to(args.device) for tensor in batch)
+            # Move tensors to GPU if available
+            #batch = tuple(batch)
             feat, target = graph_transform_fn(batch)
             x, pos, edge_index, edge_attr, node_mask = feat
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
@@ -111,7 +104,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             train_loss += loss_item
             writer.add_scalar('Loss/train', loss_item, global_step=global_step)
 
-            # Manually trigger garbage collection
             gc.collect()
             jax.clear_caches()
             global_step += 1
@@ -143,7 +135,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     results = {
         "test_mae": float(jax.device_get(test_loss)),
         "val_scores": [float(val) for val in val_scores],
-        "train_scores": [float(train) for train in train_scores]
+        "train_scores": [float(train_l) for train_l in train_scores]
     }
 
     with open(_get_result_file(checkpoint_path, model_name), "w") as f:
@@ -166,12 +158,11 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
 
     return
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Run parameters
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
-    parser.add_argument("--batch_size", type=int, default=24, help="Batch size (number of graphs).")
+    parser.add_argument("--batch_size", type=int, default=96, help="Batch size (number of graphs).")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--lr-scheduling", action="store_true", help="Use learning rate scheduling")
     parser.add_argument("--weight_decay", type=float, default=1e-16, help="Weight decay")
@@ -199,9 +190,15 @@ if __name__ == "__main__":
     parsed_args.radius = 1000.0
     parsed_args.node_type = "continuous"
 
+    from torch_geometric.datasets import QM9
+
+    dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
+    max_charge = compute_max_charge(dataset)
+    print(f"Maximum charge value in the dataset: {max_charge}")
+    parsed_args.charge_power = max_charge
+
     graph_transform = TransformDLBatches
 
-    # Unique datetime log
     log_dir = os.path.join("runs", f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     writer = SummaryWriter(log_dir=log_dir, flush_secs=10)
 
