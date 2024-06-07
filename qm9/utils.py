@@ -1,7 +1,7 @@
 import copy
 import jax.numpy as jnp
+import numpy as np  # Make sure to import numpy
 from typing import Callable
-import jraph
 import torch
 
 
@@ -19,7 +19,7 @@ def GraphTransform(property_idx) -> Callable:
     targets: Selected target property (dataset.y[:, property_idx])
     """
     def _to_jax(data):
-        jax_data = {key: jnp.array(value.numpy()) for key, value in data.items() if torch.is_tensor(value)}
+        jax_data = {key: jnp.array(np.array(value)) for key, value in data.items() if torch.is_tensor(value)}
         
         nodes = jax_data['x']
         pos = jax_data['pos']
@@ -48,7 +48,7 @@ def TransformDLBatches(property_idx):
     """
     def _to_jax(data):
         
-        data = (jnp.array(x.numpy()) for x in data)
+        data = (jnp.array(np.array(x)) for x in data)
         nodes, edge_attr, edge_index, pos, targets = data
     
         node_mask = (nodes.sum(axis=1) != 0).astype(jnp.float32)

@@ -13,8 +13,9 @@ from flax.training import checkpoints
 from typing import Callable
 from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, denormalize, normalize
 import gc
+from optax import cosine_decay_schedule
 from torch.utils.tensorboard import SummaryWriter
-
+from datetime import datetime
 
 # Seeding
 jax_seed = jax.random.PRNGKey(42)
@@ -52,11 +53,11 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes,
                we denormalize the target too because we normalize it in collate
     """
     if not training:
-        pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
+        pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, None, node_mask, max_num_nodes)[0])
         pred = denormalize(pred, meann, mad)
         target = denormalize(target, meann, mad)
     else:
-        pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
+        pred = model_fn(params, h, pos, edge_index, None, node_mask, max_num_nodes)[0]
 
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
     # TODO no_grad for training = false
@@ -68,30 +69,24 @@ def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad
         feat, target = graph_transform(data)
         h, x, edges, edge_attr, node_mask = feat
         loss = loss_fn(params, h, edge_attr, edges, x, node_mask, max_num_nodes, target, meann=meann, mad=mad, training=False)
-        #loss = loss_fn(params, h, edge_attr, edges, x, target, node_mask=node_mask, max_num_nodes=max_num_nodes, meann=meann, mad=mad, training=False)
         eval_loss += loss
     return eval_loss / len(loader)
 
 def train_model(args, model, graph_transform, model_name, checkpoint_path):
-    (
-        train_loader, 
-        val_loader, 
-        test_loader, 
-        meann, 
-        mad, 
-        max_num_nodes, 
-        max_num_edges
-    ) = get_loaders_and_statistics(args)
-
+    train_loader, val_loader, test_loader, meann, mad, max_num_nodes, max_num_edges = get_loaders_and_statistics(args)
     property_idx = get_property_index(args.property)
     graph_transform_fn = graph_transform(property_idx)
 
-    mad = jnp.maximum(mad, 1e-6) #to not divide by zero
+    mad = jnp.maximum(mad, 1e-6)
     print(f"Mean: {meann}, MAD: {mad}")
 
     init_feat, _ = graph_transform_fn(next(iter(train_loader)))
-    
-    opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
+    lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs)
+
+    opt_init, opt_update = optax.chain(
+        optax.adamw(learning_rate=lr_schedule, weight_decay=args.weight_decay)
+    )
+    #opt_init, opt_update = optax.adamw(learning_rate=args.lr, weight_decay=args.weight_decay)
     params = model.init(jax_seed, *init_feat, max_num_nodes)
     opt_state = opt_init(params)
 
@@ -108,6 +103,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     for epoch in range(args.epochs):
         train_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
+            batch = tuple(tensor.to(args.device) for tensor in batch)
             feat, target = graph_transform_fn(batch)
             x, pos, edge_index, edge_attr, node_mask = feat
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
@@ -175,71 +171,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Run parameters
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=1024,
-        help="Batch size (number of graphs).",
-    )
-    parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate")
-    parser.add_argument(
-        "--lr-scheduling",
-        action="store_true",
-        help="Use learning rate scheduling",
-    )
-    parser.add_argument(
-        "--weight_decay",
-        type=float,
-        default=1e-8,
-        help="Weight decay",
-    )
-    parser.add_argument(
-        "--val_freq",
-        type=int,
-        default=10,
-        help="Evaluation frequency (number of epochs)",
-    )
+    parser.add_argument("--batch_size", type=int, default=24, help="Batch size (number of graphs).")
+    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
+    parser.add_argument("--lr-scheduling", action="store_true", help="Use learning rate scheduling")
+    parser.add_argument("--weight_decay", type=float, default=1e-16, help="Weight decay")
+    parser.add_argument("--val_freq", type=int, default=1, help="Evaluation frequency (number of epochs)")
 
     # Dataset parameters
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="qm9",
-        help="Dataset",
-        choices=["qm9", "charged", "gravity"],
-    )
-
+    parser.add_argument("--dataset", type=str, default="qm9", help="Dataset", choices=["qm9", "charged", "gravity"])
     parser.add_argument("--property", type=str, default="homo", help="Label to predict: alpha | gap | homo | lumo | mu | Cv | G | H | r2 | U | U0 | zpve")
-    
-    # Model parameters
-    parser.add_argument(
-        "--num_hidden",
-        type=int,
-        default=128,
-        help="Number of values in the hidden layers",
-    )
-    parser.add_argument(
-        "--num_layers",
-        type=int,
-        default=3,
-        help="Number of message passing layers",
-    )
-    parser.add_argument(
-        "--basis",
-        type=str,
-        default="gaussian",
-        choices=["gaussian", "bessel"],
-        help="Radial basis function.",
-    )
-
-    parser.add_argument(
-        "--double-precision",
-        action="store_true",
-        help="Use double precision",
-    )
+    parser.add_argument("--num_hidden", type=int, default=128, help="Number of values in the hidden layers")
+    parser.add_argument("--num_layers", type=int, default=7, help="Number of message passing layers")
+    parser.add_argument("--basis", type=str, default="gaussian", choices=["gaussian", "bessel"], help="Radial basis function.")
+    parser.add_argument("--double-precision", action="store_true", help="Use double precision")
     parser.add_argument("--model_name", type=str, default="egnn", help="model")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_samples", type=int, default=3000)
+    parser.add_argument("--charge_power", type=int, default=2, help="Maximum power to take into one-hot features")
+    parser.add_argument("--charge_scale", type=float, default=1.0, help="Scale for normalizing charges")
 
     parsed_args = parser.parse_args()
 
@@ -252,7 +201,9 @@ if __name__ == "__main__":
 
     graph_transform = TransformDLBatches
 
-    writer = SummaryWriter(log_dir="runs", flush_secs=10)
+    # Unique datetime log
+    log_dir = os.path.join("runs", f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    writer = SummaryWriter(log_dir=log_dir, flush_secs=10)
 
     model = get_model(parsed_args)
     train_model(parsed_args, model, graph_transform, "qm9_EGNN", "assets")
