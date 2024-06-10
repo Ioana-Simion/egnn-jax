@@ -37,20 +37,20 @@ def _get_result_file(model_path, model_name):
     return os.path.join(model_path, model_name + "_results.json")
 
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update", "max_num_nodes"])
-def update(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target, opt_state, loss_fn, opt_update):
-    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target)
-    loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target)
+def update(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target, opt_state, loss_fn, opt_update):
+    grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target)
+    loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask,edge_mask, max_num_nodes, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
-def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, target, model_fn, meann, mad, training=True, task="graph"):
+def l1_loss(params, h, edge_attr, edge_index, pos, node_mask,edge_mask, max_num_nodes, target, model_fn, meann, mad, training=True, task="graph"):
     #jax.debug.print("Targets without normalization: {}", target)
     if not training:
         pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
         pred = mad * pred + meann
     else:
-        pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
+        pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, edge_mask, max_num_nodes)[0]
         target = (target - meann)/ mad
     
     # jax.debug.print("Predictions: {}", pred)
@@ -65,7 +65,7 @@ def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad
     for data in tqdm(loader, desc="Evaluating", leave=False):
         feat, target = graph_transform(data)
         h, x, edges, edge_attr, node_mask = feat
-        loss = loss_fn(params, h, edge_attr, edges, x, node_mask, max_num_nodes, target, meann=meann, mad=mad, training=False)
+        loss = loss_fn(params, h, None, edges, x, node_mask, max_num_nodes, target, meann=meann, mad=mad, training=False)
         eval_loss += loss
     return eval_loss / len(loader)
 
@@ -84,6 +84,9 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         optax.adamw(learning_rate=lr_schedule, weight_decay=args.weight_decay)
     )
     params = model.init(jax_seed, *init_feat, max_num_nodes)
+    for param in params['params'].keys():
+        print(f"Layer: {param} | Initial Weights: {params['params'][param]}")
+
     opt_state = opt_init(params)
 
     loss_fn = partial(l1_loss, model_fn=model.apply, meann=meann, mad=mad, task=args.task)
@@ -105,8 +108,8 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         train_loss = 0.0
         for i, batch in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False)):
             feat, target = graph_transform_fn(batch)
-            x, pos, edge_index, edge_attr, node_mask = feat
-            loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
+            x, pos, edge_index, edge_attr, node_mask, edge_mask = feat
+            loss, params, opt_state = update_fn(params, x, None, edge_index, pos, node_mask, edge_mask, max_num_nodes, target=target, opt_state=opt_state)
             loss_item = float(jax.device_get(loss))
             train_loss += loss_item
             recent_losses.append(loss_item)
@@ -185,6 +188,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr-scheduling", action="store_true", help="Use learning rate scheduling")
     parser.add_argument("--weight_decay", type=float, default=1e-16, help="Weight decay")
     parser.add_argument("--val_freq", type=int, default=1, help="Evaluation frequency (number of epochs)")
+    parser.add_argument("--attention", type=int, default=1, help="Include attention in the model")
 
     # Dataset parameters
     parser.add_argument("--dataset", type=str, default="qm9", help="Dataset", choices=["qm9", "charged", "gravity"])

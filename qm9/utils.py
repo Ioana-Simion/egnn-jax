@@ -54,8 +54,10 @@ def TransformDLBatches(property_idx):
         node_mask = (nodes.sum(axis=1) != 0).astype(jnp.float32)
         targets = targets[:, property_idx]  # Select property to optimize for
         #targets = targets.reshape(-1,1)
+        pos = pos.reshape(-1,3)
+        node_mask = node_mask.reshape(-1, 1)
 
-        return (nodes, pos, edge_index, edge_attr, node_mask), targets
+        return (nodes, pos, edge_index, edge_attr, node_mask, edge_mask), targets
     
     return _to_jax
 

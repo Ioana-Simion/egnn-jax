@@ -122,72 +122,45 @@ def collate_fn(data_list, charge_power, charge_scale, device):
 
     return atom_scalars, edge_attr, pos, mask, edge_mask, y
 
-
 def get_collate_fn_egnn(meann, mad, max_num_nodes, max_num_edges, charge_power, charge_scale, device):
     def _collate_fn(data_list):
-        x_list = [d.x for d in data_list]
-        x_list = [torch.cat([x, torch.zeros(max_num_nodes - x.size(0), x.size(1))], dim=0) for x in x_list]
-        x = pad_sequence(x_list, batch_first=True, padding_value=0.0)
-        x = x.reshape(x.shape[0] * x.shape[1], -1)
+        batch_size = len(data_list)
+        
+        # Preallocate tensors with static sizes
+        x = torch.zeros((batch_size, max_num_nodes, data_list[0].x.size(1)), dtype=torch.float32)
+        edge_index_src = []
+        edge_index_tgt = []
+        edge_attr = torch.zeros((batch_size, max_num_edges, data_list[0].edge_attr.size(1)), dtype=torch.float32)
+        pos = torch.zeros((batch_size, max_num_nodes, data_list[0].pos.size(1)), dtype=torch.float32)
+        y = torch.zeros((batch_size, data_list[0].y.size(1)), dtype=torch.float32)
+        charges = torch.zeros((batch_size, max_num_nodes), dtype=torch.long)
 
-        y = torch.stack([d.y for d in data_list]).squeeze(1)
+        for i, data in enumerate(data_list):
+            num_nodes = data.x.size(0)
+            num_edges = data.edge_index.size(1)
 
-        edge_index = []
-        start_idx = 0
-        for d in data_list:
-            num_edges = d.edge_index.size(1)
-            padded_edges = torch.cat([d.edge_index, torch.full((2, max_num_edges - num_edges), -1)], dim=1)
-            padded_edges = torch.where(padded_edges != -1, padded_edges + start_idx, padded_edges)
-            edge_index.append(padded_edges)
-            start_idx += d.num_nodes
-        edge_index = torch.cat(edge_index, dim=1)
+            x[i, :num_nodes] = data.x
+            edge_index_src.append(data.edge_index[0] + i * max_num_nodes)
+            edge_index_tgt.append(data.edge_index[1] + i * max_num_nodes)
+            edge_attr[i, :num_edges] = data.edge_attr
+            pos[i, :num_nodes] = data.pos
+            y[i] = data.y
+            charges[i, :num_nodes] = data.z
 
-        edge_attr = [d.edge_attr for d in data_list]
-        edge_attr = [torch.cat([attr, torch.zeros(max_num_edges - attr.size(0), attr.size(1))], dim=0) for attr in edge_attr]
-        edge_attr = pad_sequence(edge_attr, batch_first=True, padding_value=0.0)
-        edge_attr = edge_attr.reshape(edge_attr.shape[0] * edge_attr.shape[1], -1)
-
-        pos = [d.pos for d in data_list]
-        pos = [torch.cat([p, torch.zeros(max_num_nodes - p.size(0), p.size(1))], dim=0) for p in pos]
-        pos = pad_sequence(pos, batch_first=True, padding_value=0.0)
-        pos = pos.reshape(pos.shape[0] * pos.shape[1], -1)
-
-        z_list = [d.z for d in data_list]
-        z_list = [torch.cat([z, torch.zeros(max_num_nodes - z.size(0))], dim=0) for z in z_list]
-        charges = pad_sequence(z_list, batch_first=True, padding_value=0).long()
+        edge_index_src = torch.cat(edge_index_src)
+        edge_index_tgt = torch.cat(edge_index_tgt)
+        edge_index = [jnp.array(edge_index_src.numpy()), jnp.array(edge_index_tgt.numpy())]
 
         one_hot = torch.nn.functional.one_hot(charges, num_classes=charge_scale+1).float()
         atom_scalars = preprocess_input(one_hot, charges, charge_power, charge_scale, 'cpu')
-
+        
         # Flatten node features
         atom_scalars = atom_scalars.view(-1, atom_scalars.size(-1))
-
-        node_mask = torch.zeros((x.shape[0], max_num_nodes), dtype=torch.float32)
-        for i, d in enumerate(data_list):
-            node_mask[i, :d.x.size(0)] = 1.0
-
-        edge_mask = torch.zeros((edge_attr.shape[0], max_num_edges), dtype=torch.float32)
-        for i, d in enumerate(data_list):
-            edge_mask[i, :d.edge_attr.size(0)] = 1.0
-
-        # print(f"atom_scalars shape: {atom_scalars.shape}")
-        # print(f"edge_attr shape: {edge_attr.shape}")
-        # print(f"pos shape: {pos.shape}")
-        # print(f"node_mask shape: {node_mask.shape}")
-        # print(f"edge_mask shape: {edge_mask.shape}")
-        # print(f"y shape: {y.shape}")
-
-        # # Convert to JAX arrays
-        # atom_scalars = jnp.array(atom_scalars.numpy())
-        # edge_attr = jnp.array(edge_attr.numpy())
-        # edge_index = jnp.array(edge_index.numpy())
-        # pos = jnp.array(pos.numpy())
-        # y = jnp.array(y.numpy())
-        # node_mask = jnp.array(node_mask.numpy())
-        # edge_mask = jnp.array(edge_mask.numpy())
-
+        
+        # Create masks
+        node_mask = (charges > 0).float().view(-1, 1)
+        edge_mask = (edge_index_src >= 0).float().view(-1, 1)
         return atom_scalars, edge_attr, edge_index, pos, y, node_mask, edge_mask
-    
     return _collate_fn
 
 def compute_max_charge(dataset):
@@ -261,7 +234,7 @@ def get_model(args: Namespace) -> nn.Module:
         model = EGNN_equiv(hidden_nf=args.num_hidden, out_node_nf=num_out, n_layers=args.num_layers, velocity=velocity)
     elif (args.model_name == "egnn") and (args.dataset == "qm9"):
         from models.egnn_jax import EGNN_QM9
-        model = EGNN_QM9(hidden_nf=args.num_hidden, out_node_nf=num_out, n_layers=args.num_layers)
+        model = EGNN_QM9(hidden_nf=args.num_hidden, out_node_nf=num_out, n_layers=args.num_layers, attention= True)
     elif args.model_name == "transformer":
         from models.transformer import EGNNTransformer
         model = EGNNTransformer(
