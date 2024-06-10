@@ -30,16 +30,22 @@ class E_GCL(nn.Module):
 
     def setup(self):
         self.edge_mlp = nn.Sequential([
-            nn.Dense(self.hidden_nf),
+            nn.Dense(self.hidden_nf, kernel_init=xavier_init(), bias_init=nn.initializers.zeros),
             self.act_fn,
-            nn.Dense(self.hidden_nf),
+            nn.Dense(self.hidden_nf, kernel_init=xavier_init(), bias_init=nn.initializers.zeros),
             self.act_fn,
         ])
         self.node_mlp = nn.Sequential([
-            nn.Dense(self.hidden_nf),
+            nn.Dense(self.hidden_nf, kernel_init=xavier_init(), bias_init=nn.initializers.zeros),
             self.act_fn,
-            nn.Dense(self.hidden_nf),
+            nn.Dense(self.hidden_nf, kernel_init=xavier_init(), bias_init=nn.initializers.zeros),
         ])
+        coord_mlp_layers = [
+            nn.Dense(self.hidden_nf, kernel_init=xavier_init(), bias_init=nn.initializers.zeros),
+            self.act_fn,
+            nn.Dense(1, kernel_init=xavier_init(gain=0.001), bias_init=nn.initializers.zeros),
+        ]
+        self.coord_mlp = nn.Sequential(coord_mlp_layers)
 
     def edge_model(self, edge_index, h, coord, edge_attr):
         row, col = edge_index
@@ -57,12 +63,7 @@ class E_GCL(nn.Module):
 
     def coord_model(self, edge_index, edge_feat, coord):
         row, col = edge_index
-        coord_mlp = nn.Sequential([
-            nn.Dense(self.hidden_nf),
-            self.act_fn,
-            nn.Dense(1, kernel_init=xavier_init(gain=0.001)),
-        ])
-        coord_out = coord_mlp(edge_feat)
+        coord_out = self.coord_mlp(edge_feat)
         trans = (coord[row] - coord[col]) * coord_out
         agg = unsorted_segment_mean(trans, row, num_segments=coord.shape[0])
         coord = coord + agg
@@ -126,7 +127,9 @@ class EGNN_QM9(nn.Module):
         h = h.reshape(-1, n_nodes, self.hidden_nf)
         h = jnp.sum(h, axis=1)
         h = nn.Dense(self.out_node_nf)(h)
+        h = jnp.squeeze(h, axis=-1)  # Squeeze the last dimension like in original repo
         return h, x
+    
 def preprocess_input(one_hot, charges, charge_power, charge_scale):
     charge_tensor = (charges[..., None] / charge_scale) ** jnp.arange(charge_power + 1)
     charge_tensor = charge_tensor.reshape(*charges.shape, -1)

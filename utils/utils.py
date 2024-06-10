@@ -282,6 +282,23 @@ def get_model(args: Namespace) -> nn.Module:
 
     return model
 
+#apparently torch_geometric property values come in Hartree and need conversion to ev
+qm9_to_eV = {
+    'U0': 27.2114, 
+    'U': 27.2114, 
+    'G': 27.2114, 
+    'H': 27.2114, 
+    'zpve': 27211.4, 
+    'gap': 27.2114, 
+    'homo': 27.2114,
+    'lumo': 27.2114
+}
+
+def convert_units(data, conversion_dict):
+    for key, factor in conversion_dict.items():
+        if key in data:
+            data[key] = data[key] * factor
+    return data
 
 def get_loaders_and_statistics(
     args: Namespace, transformer=False
@@ -308,6 +325,7 @@ def get_loaders_and_statistics(
             test_loader = DataLoader(dataset[num_train+num_val:num_train+num_val+num_test], batch_size=args.batch_size, collate_fn=collate_fn_egnn_transformer, pin_memory=False)
         else:
             dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
+            dataset = [convert_units(data, qm9_to_eV) for data in dataset]
             num_train = 100000
             num_val = 18000
             num_test = 13000

@@ -53,10 +53,10 @@ def l1_loss(params, h, edge_attr, edge_index, pos, node_mask, max_num_nodes, tar
         pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0]
         target = (target - meann)/ mad
     
-    #jax.debug.print("Predictions: {}", pred)
-    #print(pred.shape)
-    #jax.debug.print("Targets: {}", target)
-    #print(target.shape)
+    # jax.debug.print("Predictions: {}", pred)
+    # print(pred.shape)
+    # jax.debug.print("Targets: {}", target)
+    # print(target.shape)
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
     return jnp.mean(jnp.abs(pred - target))
 
@@ -77,9 +77,8 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     mad = jnp.maximum(mad, 1e-6)
     print(f"Mean: {meann}, MAD: {mad}")
 
-    #init_feat, _ = graph_transform_fn(next(iter(train_loader)))
     init_feat, target = graph_transform_fn(next(iter(train_loader)))
-    lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs)
+    lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs * len(train_loader))
 
     opt_init, opt_update = optax.chain(
         optax.adamw(learning_rate=lr_schedule, weight_decay=args.weight_decay)
@@ -95,17 +94,28 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     val_scores = []
     test_loss, best_val_epoch = 0, 0
     best_val_loss = float('inf')
+    log_interval = 20
+    recent_losses = []
 
     global_step = 0
     for epoch in range(args.epochs):
+        current_lr = lr_schedule(global_step)
+        print(f"Start of Epoch {epoch} \t Learning Rate: {current_lr:.6f}")
+        
         train_loss = 0.0
-        for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
-            #batch = tuple(batch)
+        for i, batch in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False)):
             feat, target = graph_transform_fn(batch)
             x, pos, edge_index, edge_attr, node_mask = feat
             loss, params, opt_state = update_fn(params, x, edge_attr, edge_index, pos, node_mask, max_num_nodes, target=target, opt_state=opt_state)
             loss_item = float(jax.device_get(loss))
             train_loss += loss_item
+            recent_losses.append(loss_item)
+            if len(recent_losses) > log_interval:
+                recent_losses.pop(0)
+            avg_recent_loss = sum(recent_losses) / len(recent_losses)
+            if i % log_interval == 0:
+                print(f"Iteration {i} \t Avg loss over last {log_interval} iterations: {avg_recent_loss:.4f} \t lr {current_lr:.6f}")
+
             writer.add_scalar('Loss/train', loss_item, global_step=global_step)
 
             gc.collect()
@@ -130,6 +140,9 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             test_loss = eval_fn(test_loader, params, max_num_nodes)
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
             jax.clear_caches()
+
+        current_lr = lr_schedule(global_step)
+        print(f"End of Epoch {epoch} \t Learning Rate: {current_lr:.6f}")
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, "
           f"Validation loss: {best_val_loss:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
