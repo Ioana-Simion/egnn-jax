@@ -39,7 +39,7 @@ def _get_result_file(model_path, model_name):
 @partial(jax.jit, static_argnames=["loss_fn", "opt_update", "max_num_nodes"])
 def update(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target, opt_state, loss_fn, opt_update):
     grads = jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target)
-    loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask,edge_mask, max_num_nodes, target)
+    loss = loss_fn(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target)
     updates, opt_state = opt_update(grads, opt_state, params)
     return loss, optax.apply_updates(params, updates), opt_state
 
@@ -47,7 +47,7 @@ def update(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_
 def l1_loss(params, h, edge_attr, edge_index, pos, node_mask,edge_mask, max_num_nodes, target, model_fn, meann, mad, training=True, task="graph"):
     #jax.debug.print("Targets without normalization: {}", target)
     if not training:
-        pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, max_num_nodes)[0])
+        pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, edge_mask, max_num_nodes)[0])
         pred = mad * pred + meann
     else:
         pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, edge_mask, max_num_nodes)[0]
@@ -64,8 +64,8 @@ def evaluate(loader, params, max_num_nodes, loss_fn, graph_transform, meann, mad
     eval_loss = 0.0
     for data in tqdm(loader, desc="Evaluating", leave=False):
         feat, target = graph_transform(data)
-        h, x, edges, edge_attr, node_mask = feat
-        loss = loss_fn(params, h, None, edges, x, node_mask, max_num_nodes, target, meann=meann, mad=mad, training=False)
+        x, pos, edge_index, edge_attr, node_mask, edge_mask = feat
+        loss = loss_fn(params, x, None, edge_index, pos, node_mask, edge_mask, max_num_nodes, target, meann=meann, mad=mad, training=False)
         eval_loss += loss
     return eval_loss / len(loader)
 
@@ -84,8 +84,8 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
         optax.adamw(learning_rate=lr_schedule, weight_decay=args.weight_decay)
     )
     params = model.init(jax_seed, *init_feat, max_num_nodes)
-    for param in params['params'].keys():
-        print(f"Layer: {param} | Initial Weights: {params['params'][param]}")
+    # for param in params['params'].keys():
+    #     print(f"Layer: {param} | Initial Weights: {params['params'][param]}")
 
     opt_state = opt_init(params)
 
