@@ -121,8 +121,8 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
 
             writer.add_scalar('Loss/train', loss_item, global_step=global_step)
 
-            gc.collect()
-            jax.clear_caches()
+            #gc.collect()
+            #jax.clear_caches()
             global_step += 1
 
         train_loss /= len(train_loader)
@@ -142,7 +142,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 save_model(params, checkpoint_path, model_name)
             test_loss = eval_fn(test_loader, params, max_num_nodes)
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
-            jax.clear_caches()
+            #jax.clear_caches()
 
         current_lr = lr_schedule(global_step)
         print(f"End of Epoch {epoch} \t Learning Rate: {current_lr:.6f}")
