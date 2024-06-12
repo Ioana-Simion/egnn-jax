@@ -115,9 +115,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             train_loss += loss_item
             writer.add_scalar('Loss/train', loss_item, global_step=global_step)
 
-            # Manually trigger garbage collection
-            gc.collect()
-            jax.clear_caches()
             global_step += 1
 
         train_loss /= len(train_loader)
@@ -136,7 +133,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 best_val_loss = val_loss_item
                 save_model(params, checkpoint_path, model_name)
                 test_loss = eval_fn(test_loader, params, max_num_nodes)
-                jax.clear_caches()
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, "
           f"Validation loss: {best_val_loss:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
