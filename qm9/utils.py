@@ -1,7 +1,7 @@
 import copy
 import jax.numpy as jnp
+import numpy as np  # Make sure to import numpy
 from typing import Callable
-import jraph
 import torch
 
 
@@ -19,7 +19,7 @@ def GraphTransform(property_idx) -> Callable:
     targets: Selected target property (dataset.y[:, property_idx])
     """
     def _to_jax(data):
-        jax_data = {key: jnp.array(value.numpy()) for key, value in data.items() if torch.is_tensor(value)}
+        jax_data = {key: jnp.array(np.array(value)) for key, value in data.items() if torch.is_tensor(value)}
         
         nodes = jax_data['x']
         pos = jax_data['pos']
@@ -47,15 +47,17 @@ def TransformDLBatches(property_idx):
     targets: Selected target property (dataset.y[:, property_idx])
     """
     def _to_jax(data):
-        
-        data = (jnp.array(x.numpy()) for x in data)
-        nodes, edge_attr, edge_index, pos, targets = data
+
+        data = (jnp.array(np.array(x)) for x in data)
+        nodes, edge_attr, edge_index, pos, targets, node_mask, edge_mask = data
     
         node_mask = (nodes.sum(axis=1) != 0).astype(jnp.float32)
         targets = targets[:, property_idx]  # Select property to optimize for
-        targets = targets.reshape(-1,1)
+        #targets = targets.reshape(-1,1)
+        pos = pos.reshape(-1,3)
+        node_mask = node_mask.reshape(-1, 1)
 
-        return (nodes, pos, edge_index, edge_attr, node_mask), targets
+        return (nodes, pos, edge_index, edge_attr, node_mask, edge_mask), targets
     
     return _to_jax
 

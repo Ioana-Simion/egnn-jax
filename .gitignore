@@ -31,3 +31,10 @@ assets/test.tar
 assets/test_results.json
 data/QM9/raw/qm9.zip
 runs/*
+assets/egnn/checkpoint_0/_CHECKPOINT_METADATA
+assets/egnn/checkpoint_0/_METADATA
+assets/qm9_EGNN/checkpoint_0/_CHECKPOINT_METADATA
+assets/qm9_EGNN/checkpoint_0/_METADATA
+assets/egnn/checkpoint_0/checkpoint
+assets/qm9_EGNN/checkpoint_0/checkpoint
+assets/log.txt
