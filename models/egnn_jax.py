@@ -4,11 +4,11 @@ import flax.linen as nn
 from jax.nn.initializers import glorot_uniform, uniform
 from jax.tree_util import tree_map
 
-def xavier_init(gain=1.0):
-    def init(key, shape, dtype):
-        bound = gain * jnp.sqrt(6.0 / (shape[0] + shape[1]))
-        return jax.random.uniform(key, shape, dtype, -bound, bound)
-    return init
+#def xavier_init(gain=1.0):
+#    def init(key, shape, dtype):
+#        bound = gain * jnp.sqrt(6.0 / (shape[0] + shape[1]))
+#        return jax.random.uniform(key, shape, dtype, -bound, bound)
+#    return init
 
 def unsorted_segment_sum(data, segment_ids, num_segments):
     return jax.ops.segment_sum(data, segment_ids, num_segments)
@@ -20,10 +20,101 @@ def unsorted_segment_mean(data, segment_ids, num_segments):
     seg_count = jnp.maximum(seg_count, 1)  # Avoid 0 division
     return seg_sum / seg_count
 
+def xavier_init(gain):
+    def init(key, shape, dtype):
+        bound = gain * jnp.sqrt(6.0 / (shape[0] + shape[1]))
+        return jax.random.uniform(key, shape, dtype, -bound, bound)
+
+    return init
+
 
 class E_GCL(nn.Module):
     """
     E(n) Equivariant Message Passing Layer
+    """
+
+    hidden_nf: int
+    act_fn: callable
+    velocity: bool = False
+
+    def edge_model(self, edge_index, h, coord, edge_attr):
+
+        row, col = edge_index
+        source, target = h[row], h[col]
+        radial = self.coord2radial(edge_index, coord)
+
+        edge_mlp = nn.Sequential(
+            [
+                nn.Dense(self.hidden_nf),
+                self.act_fn,
+                nn.Dense(self.hidden_nf),
+                self.act_fn,
+            ]
+        )
+
+        out = jnp.concatenate([source, target, radial, edge_attr], axis=1)
+
+        return edge_mlp(out)
+
+    def node_model(self, edge_index, edge_attr, x):
+        row, col = edge_index
+        agg = unsorted_segment_sum(edge_attr, row, num_segments=x.shape[0])
+
+        node_mlp = nn.Sequential(
+            [nn.Dense(self.hidden_nf), self.act_fn, nn.Dense(self.hidden_nf)]
+        )
+
+        agg = jnp.concatenate([x, agg], axis=1)
+        out = node_mlp(agg)
+
+        # TODO do we need to add x to out? to update it
+        return out, agg
+
+    def coord_model(self, edge_index, edge_feat, coord):
+        row, col = edge_index
+        coord_mlp = nn.Sequential(
+            [
+                nn.Dense(self.hidden_nf),
+                self.act_fn,
+                nn.Dense(1, kernel_init=xavier_init(gain=0.001)),
+            ]
+        )
+
+        coord_out = coord_mlp(edge_feat)
+        trans = (coord[row] - coord[col]) * coord_out
+
+        agg = unsorted_segment_mean(trans, row, num_segments=coord.shape[0])
+
+        coord = coord + agg
+        return coord
+
+    def coord2radial(self, edge_index, coord):
+        senders, receivers = edge_index
+        coord_i, coord_j = coord[senders], coord[receivers]
+        distance = jnp.sum((coord_i - coord_j) ** 2, axis=1, keepdims=True)
+        return distance
+
+    def coord_vel_model(self, coord, h, vel):
+        coord_mlp_vel = nn.Sequential([
+            nn.Dense(self.hidden_nf),
+            self.act_fn,
+            nn.Dense(1)])
+
+        coord += coord_mlp_vel(h) * vel
+        return coord
+
+    @nn.compact
+    def __call__(self, h, edge_index, coord, vel=None, edge_attr=None):
+        m_ij = self.edge_model(edge_index, h, coord, edge_attr)
+        h, agg = self.node_model(edge_index, m_ij, h)
+        coord = self.coord_model(edge_index, m_ij, coord)
+        if self.velocity:
+            coord = self.coord_vel_model(coord, h, vel)
+        return h, coord, m_ij
+
+class E_GCL_OG(nn.Module):
+    """
+    E(n) Equivariant Message Passing Layer - Reproduction of initial
     """
     input_nf: int
     output_nf: int
@@ -154,7 +245,7 @@ class EGNN_QM9(nn.Module):
     def __call__(self, h, x, edges, edge_attr, node_mask, edge_mask, n_nodes):
         h = nn.Dense(self.hidden_nf)(h)
         for i in range(self.n_layers):
-            h, x, _ = E_GCL(self.hidden_nf, self.hidden_nf, self.hidden_nf, act_fn=self.act_fn, attention=self.attention)(
+            h, x, _ = E_GCL_OG(self.hidden_nf, self.hidden_nf, self.hidden_nf, act_fn=self.act_fn, attention=self.attention)(
                 h, edges, x, node_mask, edge_mask, edge_attr=None)
         h = h * node_mask  # Ensure node_mask is broadcasted correctly
         h = h.reshape(-1, n_nodes, self.hidden_nf)
