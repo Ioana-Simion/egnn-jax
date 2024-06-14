@@ -120,7 +120,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 print(f"Iteration {i} \t Avg loss over last {log_interval} iterations: {avg_recent_loss:.4f} \t lr {current_lr:.6f}")
 
             writer.add_scalar('Loss/train', loss_item, global_step=global_step)
-
             #gc.collect()
             #jax.clear_caches()
 
@@ -139,6 +138,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 print("\t   (New best performance, saving model...)")
                 best_val_loss = val_loss_item
                 save_model(params, checkpoint_path, model_name)
+                
             test_loss = eval_fn(test_loader, params, max_num_nodes)
             print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
             #jax.clear_caches()
