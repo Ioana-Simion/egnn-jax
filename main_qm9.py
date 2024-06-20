@@ -78,7 +78,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     print(f"Mean: {meann}, MAD: {mad}")
 
     init_feat, target = graph_transform_fn(next(iter(train_loader)))
-    lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs * len(train_loader))
+    lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs * len(train_loader), alpha=0.00001)
 
     opt_init, opt_update = optax.chain(
         optax.adamw(learning_rate=lr_schedule, weight_decay=args.weight_decay)
@@ -116,10 +116,11 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             if len(recent_losses) > log_interval:
                 recent_losses.pop(0)
             avg_recent_loss = sum(recent_losses) / len(recent_losses)
-            if i % log_interval == 0:
-                print(f"Iteration {i} \t Avg loss over last {log_interval} iterations: {avg_recent_loss:.4f} \t lr {current_lr:.6f}")
+            # if i % log_interval == 0:
+            #     print(f"Iteration {i} \t Avg loss over last {log_interval} iterations: {avg_recent_loss:.4f} \t lr {current_lr:.6f}")
 
             writer.add_scalar('Loss/train', loss_item, global_step=global_step)
+            global_step += 1
             #gc.collect()
             #jax.clear_caches()
 
@@ -132,20 +133,18 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             val_loss_item = float(jax.device_get(val_loss))
             val_scores.append(val_loss_item)
             writer.add_scalar('Loss/val', val_loss_item, epoch)
-            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
+            #print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}")
 
             if val_loss_item < best_val_loss:
                 print("\t   (New best performance, saving model...)")
                 best_val_loss = val_loss_item
                 save_model(params, checkpoint_path, model_name)
-                
-            test_loss = eval_fn(test_loader, params, max_num_nodes)
-            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
+                test_loss = eval_fn(test_loader, params, max_num_nodes)
+                print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
             #jax.clear_caches()
-
+        
         current_lr = lr_schedule(global_step)
         print(f"End of Epoch {epoch} \t Learning Rate: {current_lr:.6f}")
-        global_step += 1
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, "
           f"Validation loss: {best_val_loss:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
@@ -182,7 +181,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Run parameters
-    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
+    parser.add_argument("--epochs", type=int, default=1000, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=96, help="Batch size (number of graphs).")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--lr-scheduling", action="store_true", help="Use learning rate scheduling")
