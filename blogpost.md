@@ -1,16 +1,15 @@
-# **DEMETAr: Double Encoder Method for an Equivariant Transformer Architecture"**
+# **Accelerating Equivariant Neural Networks with JAX for Complex Data Sets "**
 
 ### _I. Simion, S. Vasilev, J. Schäfer, G. Go, T. P. Kersten_
 
 ---
 
-This blogpost serves as an introduction to our novel implementation of equivariance for transformer architectures. While equivariant transformers do already exist, we propose a method that utilizes two encoders for the node and edge information separately (which we implement in JAX mostly from scratch). This allows for more flexibility in the inputs we provide and ease of configurability for any task which can utilize graphs.
+This blog post serves as a tutorial for fast and scalable training of Equivariant Neural Networks, which handle more complex data, making them slower and harder to train. We propose leveraging JAX's capabilities to address these challenges. In this work, we analyze the benefits of utilizing JAX and provide a detailed breakdown of the steps needed to achieve a fully JIT-compatible framework. This approach not only enhances the performance of Neural Networks but also opens the door for future research in developing fully equivariant transformers using JAX.
 
 This blogpost serves three purposes: 
-1. Explain the ideas of equivariance in transformer networks while also explaining some of the methods used.
-2. Provide an overview of some reproduction results for other methods (i.e., the Equivariant Graph Neural Network).
-3. Give an overview of our method and a comparison with the aforementioned reproduction results.
-4. Give an overview of the ablation studies we performed by disabling certain components of the transformer, which were done to demonstrate how adding more equivariances makes the model work better in leveraging the available geometric constraints.
+1. Explain the ideas of equivariance in networks while also explaining some of the methods used.
+2. Give an overview of the performance tests conducted on the two approaches.
+3. Provide an overview of reproduction results for the Equivariant Graph Neural Network.
 
 ---
 
@@ -20,10 +19,7 @@ As equivariance is prevalent in the natural sciences \[1, 2, 3, 11, 17\], it mak
 
 Following these works, more efficient implementations have emerged, with the first being the Equivariant Graph Neural Network (EGNN) \[5\]. Based on the GNN \[4, 15, 16\], which follows a message passing scheme, it innovates by inputting the relative squared distance between two coordinates into the edge operation and to make the output equivariant, updates the coordinates of the nodes per layer. This specific method bypasses any expensive computations/approximations relative to other, similar methods while retaining high performance levels, making it preferable compared to most other GNN architectures.
 
-More recently, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness for tackling such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches.
-
-Here we expand upon this idea by introducing a dual encoder architecture, where unlike most other approaches, the node and edge information are encoded separately, which are afterwards combined to a common embedding space. Such an approach was chosen because we wanted to leverage this information that was generally discarded by other similar implementations. This provides a novel benefit in the form of learning abstract spaces from interactions between input features from the two separate modalities before seamlessly combining them.
-
+More recently, transformer architectures have been utilized within the field of equivariant models. While not typically used for these types of problems due to how they were originally developed for sequential tasks \[20, 21\], recent work has suggested their effectiveness for tackling such issues \[7, 18, 19\]. This is possible through the incorporation of domain-related inductive biases, allowing them to model geometric constraints and operations. In addition, one property of transformers is that they assume full adjacency by default, which is something that can be adjusted to better match the local connectivity of GNN approaches. These additions further increase the complexity of the framework, strongly highlighting the need for a more efficient alternative.
 
 ## **<a name="recap">Recap of Equivariance</a>**
 
@@ -61,83 +57,6 @@ x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \varph
 
 This idea of using the distances during computation forms one of the bases of our proposed transformer architecture, as it is a simple yet effective way to impose geometric equivariance within a system.
 
-## **<a name="architecture">Equivariant Transformer</a>**
-
-<table align="center">
-  <tr align="center">
-      <td><img src="assets/DEMETAr.png" width=800></td>
-  </tr>
-  <tr align="left">
-    <td colspan=2><b>Figure 1.</b> Visualization of the DEMETAr architecture.</td>
-  </tr>
-</table>
-
-Our method of improving the aforementioned architecture would be to leverage the capabilites of transformers \[6\]. The key difference between them and GNNs is that the former treats the entire input as a fully-connected graph. This would typically make transformers less-suited, though many papers have been published which demonstrate their effectivity in handling these tasks \[7\]. 
-
-As our contribution to the field, we introduce a dual encoder system (visualized in Figure 1). The first encoder contains all the node features and normalized distances of each node to the molecule's center of mass, while the other exclusively encodes the edge features (i.e., bond type) and an edge length feature. 
-
-Formally a feature vector for a single node $n$ looks like this:
-
-$$\begin{align} 
-F_n = [f_n^{(0)}, ..., f_n^{(s)}, ||x_n-x_{COM}||]
-\end{align}$$
-
-where $s$ is the number of node features, $x_i$ is the position of node $i$ and $x_{COM}$ is the center of mass position.
-
-To explain this approach, we first need to define the following components:
-
-$$\begin{align} 
-& K^l_e, V^l_e &: \text{the keys, values of edge features at layer } l. \\
-& K^l_n, V^l_n, Q^l_n &: \text{the keys, values, queries of node features at layer } l.
-\end{align}$$
-
-Now we can begin with the actual approach. We first use an edge encoder with $p$ transformer layers on the edge features to get complex edge features. Then, we want to obtain "edge enrichments" of the node space $Z^p_e$, i.e edge information incorporated into the node encoder space. We obtain $K^p_e$, $V^p_e$ and perform the following attention operation:
-
-$$\begin{align} 
-Z^p_e = \frac{softmax(Q^p_n K^{pT}_e + M) V^p_e}{\sqrt{d}}, \qquad \qquad \text{(Equation 9)}
-\end{align}$$
-
-where the output $Z^p_e$ is a matrix of size $n \times d$ (due to the cross-attention) which contains edge encoded information in the node space for every node and $M$ is an adjacency matrix mask of size $n \times e$ where all connections are 0's and non-connections are $-\infty$ to prohibit the attention from attending to non-connected edges. Furthermore, for all layers $< p$, only the edge queries, keys, and values are used, thus no mask is required there. Contrary to that, in the $p$-th layer, we limit the attention to only the connected nodes of each edge to calculate the edge enrichment information for every node. Lastly, the final division after softmaxing by the dimension size $\sqrt(d)$ is to normalize the output scale, a method employed by most other transfomer architectures.
-
-Now, we need to obtain the node encodings, which is done through the following: 
-
-$$\begin{align} 
-Z^r_n = \frac{softmax(Q^r_n K^{rT}_n) V^n_r}{\sqrt{d}}, \qquad \qquad \text{(Equation 10)}
-\end{align}$$
-
-where $Z^r_n$ is the output of layer $r$, which is the node encoder's last layer. Also, similar to the previous formula, we also control the output magnitude by dividing by $\sqrt{d}$.
-
-As we now have both the node and edge features encoded, we can simply sum these encodings to combine them together:
-
-$$\begin{align} 
-Z^0_j &= Z^p_e + Z^r_n, \qquad \qquad \text{(Equation 11)}
-\end{align}$$
-
-where $Z^0_j$ is the input for a join encoder $Z^j$. This operation can alternatively be interpreted as a residual connection in the node space, where $Z^r_n$ is the residual connection. Afterwards, we continue the computation with an $h$-layer joint encoder and get the output $Z^h_j$. One final note is that we have a [CLS] token in the $Z^0_j$ or the $Z^0_n$ input which is used for classification.
-
-Similarly to how the equivariant GNN in \[5\] is made equivariant, we created 2 different ways of introducing equivariance for a node-centric approach. Our model predicts the difference between starting and final position. $F_i$ are the edge enriched encoded features for node i. To create equivariance we follow the following 2 approaches:
-
-$$\begin{align} 
-x^{output}_i = x^{input}_i + vel_i^{input} \cdot \Phi(F_i)\\
-x^{output}_i = x^{input}_i + (x^{input}_i - x^{com}) \cdot \Phi(F_i)
-\end{align}$$
-
-### **Proof of Equivariance**
-
-$$\begin{align} 
-Qx_i^{update}+g&=Qx_i^{input}+g+Qvel_i^{input}\Phi(F_i)\\
-&=Q(x_i^{input}+vel_i^{input}\Phi(F_i))+g\\
-&=Qx_i^{update}+g\\
-\end{align}$$
-
-$$\begin{align} 
-Qx_i^{update}+g&=Qx_i^{input}+g+(Qx_i^{input}+g - (Qx^{center}+g))\Phi(F_i)\\
-&=Q(x_i^{input}+(x_i^{input}-x^{center})\Phi(F_i))+g\\
-&=Qx_i^{update}+g\\
-\end{align}$$
-
-Our dual encoder system is equivariant through encoding normalized distances to the molecule's center of mass and edge lengths, ensuring that the features are invariant to translations and rotations of the molecule. In addition, our transformers uses adjacency masking in the attention mechanism to ensure that attention is only paid to connected nodes and edges. This makes it inherently respect the graph structure and maintain the relative positional information between nodes and edges. Finally, as a unique benefit of this approach, we allow for flexibility in regards to the way we accept and process inputs, due to being able to focus either only on the nodes or also the edges.
-
 ## **Experiments**
 
 ### **N-Body dataset**
@@ -148,13 +67,25 @@ In this dataset, a dynamical system consisting of 5 atoms is modeled in 3D space
 
 This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule. In addition, larger batch sizes were also experimented with due to smaller sizes causing bottlenecks during training. 
 
+## **<a name="jax">Why JAX?</a>**
+JAX is a high-performance numerical computing library that provides several advantages over traditional frameworks like PyTorch. By default, JAX automatically compiles library calls using just-in-time (JIT) compilation, which ensures optimal execution performance. This compilation utilizes XLA-optimized kernels, allowing for sophisticated algorithm expression without leaving Python. JAX also excels in utilizing multiple GPUs or TPU cores, making it ideal for high-compute scenarios. One of the standout features of JAX is its efficient evaluation of gradients through automatic differentiation transformations, which is crucial for training neural networks.
+
+
+## **<a name="jax-data">Preparing data for JAX training</a>**
+In this section, we introduce a straightforward method for preprocessing data from a PyTorch-compatible format to one suitable for JAX. Our approach handles node features, edge attributes and indices, positions, and target properties. The key step is converting data to jnp.array, ensuring compatibility with JAX operations. For examples of such usage, refer to `qm9\utils.py` or `n_body\utils.py`.
+
+## **<a name="jax-data">Training the model</a>**
+Now, we will address the key differences and steps in adapting the training loop, model saving and evalution functions in JAX (refer to `main_qm9.py` and `nbody_egnn_trainer.py`)
+
+JAX uses a functional approach to define and update the model parameters. We use `jax.jit` via the `partial` decorator for just-in-time (JIT) compilation to optimize performance. JIT compilation ensures that our code runs efficiently by compiling the functions once and then executing the compiled code multiple times. We also see `static_argnames` in the decorators of loss and update function, which specify which arguments to treat as static. These are arguments whose values are known at compile time and do not change across different function calls. By specifically marking them, JAX can assume the static arguments won't change and optimize the function accordingly and not worry about the variability. 
+
+In JAX, model initialization requires knowing the size of the input beforehand. We extract features to get shapes and initialize the model using: params = `model.init(jax_seed, *init_feat, max_num_nodes)`.
+This seed is used to initialize the random number generators, which in turn produce the sequences of random numbers used in model initialization, data shuffling, etc. In JAX, the seed is created using the jax.random.PRNGKey function. This function generates a key that is used for all random operations, ensuring that they are reproducible and can be split into multiple independent keys if needed.
+
+The loss function is called as `jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target)`. `jax.grad` is a powerful tool in JAX for automatic differentiation, allowing to compute gradients of scalar-valued functions with respect to their inputs.
+
 ## **<a name="architecture">Evaluating the Models</a>**
 
-As a baseline, we compare our dual encoder transformer to varying architectures, with the first being from \[5\] as it is generally the best performing model. In addition, we also show the baseline performance reported in QM9 to show how our transformer fares with other transformer methods, specifically compared with that of \[7\] as it outperforms many other implementations in the benchmarks tasks (i.e., QM9) due to utilizing radial basis functions to expand the interatomic distances and adjusting the transformer operations to acommodate to these modified distances naturally.
-
-For all the aforementioned methods except TorchMD-Net (due to time constraints), we evaluate and reproduce their performance on the QM9 \[12, 13\] and N-Body \[14\] datasets. The former is a task which involves predicting quantum chemical properties (at DFT level) of small organic molecules and is used to evaluate the model performances on invariant tasks due to only requiring property predictions. Meanwhile, the latter is to test how well each model can handle equivariance in the data, as it involves predicting the positions of particles depending on the charges and velocities.
-
-In addition, an ablation study is conducted to evaluate the performance of our method when parts of it are disabled, which is further detailed below.
 
 
 ## **<a name="reproduction">Reproduction Results</a>**
@@ -170,7 +101,7 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   <tr align="center">
     <td align="left"> QM9 (ε<sub>HOMO</sub>) (meV)</td>
     <td align="left">29</td>
-    <td align="left">275*</td>
+    <td align="left">75</td>
   </tr>
   <tr align="center">
     <td align="left">N-Body (Position MSE)</td>
@@ -182,10 +113,7 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   </tr>
 </table>
 
-<sup>*Currently, the result is influenced by the large batch size, causing it to not learn the specific molecule properties well.</sup>
-
 Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-Body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
-
 
 ## **<a name="comparison">Comparison with other Methods</a>**
 
@@ -214,100 +142,26 @@ Meanwhile, when comparing with other transformer implementations, we see based o
     <td align="left">40</td>
     <td align="left">35.0</td>
     <td align="left">20.3</td>
-    <td align="left">290*</td>
+    <td align="left">75</td>
   </tr>
   <tr align="left">
     <td colspan=10><b>Table 2.</b> Comparison of results for QM9, taken from [7, 18].</td>
   </tr>
 </table>
 
-<sup>*Currently, the result is influenced by the large batch size, causing it to not learn the specific molecule properties well.</sup>
-
-
-<table align="center">
-  <tr align="center">
-      <th align="left"></th>
-      <th align="left">Linear</th>
-      <th align="left">DeepSet</th>
-      <th align="left">Tensor Field</th>
-      <th align="left">Set Transformer</th>
-      <th align="left">SE(3)-Transformer</th>
-      <th align="left">DEMETAr</th>
-  </tr>
-  <tr align="center">
-    <td align="left">MSE<sub>x</sub></td>
-    <td align="left">0.0691</td>
-    <td align="left">0.0639</td>
-    <td align="left">0.0151</td>
-    <td align="left">0.0139</td>
-    <td align="left"><b>0.0076</b></td>
-    <td align="left">0.050895</td>
-  </tr>
-  <tr align="left">
-    <td colspan=9><b>Table 3.</b> Comparison of results for the N-Body task, taken from [18].</td>
-  </tr>
-</table>
-
-## **<a name="ablation">Ablation studies</a>**
-
-### **Comparison of different Equivariances on the N-Body dataset.**
-
-Here, we compare 4 different transformer architectures. The first is a standard transformer (not equivariant) that uses the positions as input to predict the final positions. Furthermore, we have 3 equivariant transformers: One that is translation equivariant and 2 that are translation and rotation equivariant, one via velocity and one via distance to the center of mass. All models were trained for 40 epochs.
-
-<table align="center">
-  <tr align="center">
-      <th align="left"></th>
-      <th align="left">Standard Transformer</th>
-      <th align="left">Translation Equivariant Transformer</th>
-      <th align="left">Translation Rotation Equivariant Transformer \w Center of Mass</th>
-    <th align="left">Translation Rotation Equivariant Transformer \w Velocity</th>
-  </tr>
-  <tr align="center">
-    <td align="left">MSE<sub>x</sub></td>
-    <td align="left">1.259675</td>
-    <td align="left">0.364862</td>
-    <td align="left">0.313850</td>
-    <td align="left">0.050895</td>
-  </tr>
-  <tr align="left">
-    <td colspan=9><b>Table 4.</b> Comparison of different equivariances on the N-Body dataset.</td>
-  </tr>
-</table>
-
-The standard transformer acts as the baseline. Its low performance highlights the need for equivariance for this task, as it has issues generalising, possibly due to rotated and translated examples within a dataset. The second model, which is translation equivariant, performs better. Despite this, it is outperformed by models which are both translation and rotation equivariant. These dually equivariant models can fully learn the rules of the dynamical system while not being restricted to struggling with learning how rotations also influence the dynamical system, proving that models incorporating equivariance outperform those that do not. Furthermore, we show that not all equivariant approaches are equally expressive.
-
-
-### **Comparison of different Transformer Architectures**
-
-Different types of architectures for the transformer are compared on the roto-translation velocity model. The hyper-parameters (hidden dimensions, number of encoders) of the models in the table were varied so that all models have around 100k parameters.
-
-<table align="center">
-  <tr align="center">
-    <th align="left"></th>
-    <th align="left">Node only Encoder Dim 128</th>
-    <th align="left">Node only 4 Encoder Blocks</th>
-    <th align="left">Edge Cross Attention</th>
-    <th align="left">Double Encoder</th>
-  </tr>
-  <tr align="center">
-    <td align="left">MSE<sub>x</sub></td>
-    <td align="left">0.050895</td>
-    <td align="left">0.051638</td>
-    <td align="left">0.040679</td>
-    <td align="left">0.050895</td>
-  </tr>
-  <tr align="left">
-    <td colspan=9><b>Table 5.</b> Comparison of different transformer architectures on the N-Body dataset for the translation rotation equivariant Transformer using velocity.</td>
-  </tr>
-</table>
-
-Both Node-only encoder approaches perform very similarly, leading to the conclusion that they are able to capture the information that lies within the nodes. The best performing model uses an embedding layer for the edge features, a node encoder built on top of a node embedding layer, both which get put into a cross attention layer. This layer enriches the node space with edge information directly, while the double encoder appraoch uses an encoder between the edge embedding and the cross attention layer.
-
-Another aspect that is very interesting, is to see that the Node-only encoder approach with 128 hidden dimensions performs as good as the Double encoder approach. The double encoder approach enriches the node space with information from the edge space. This suggests, that 64 hidden dimensions in our models are not enough. Further experiments with a double encoder with 128 hidden dimensions (360k parameter) prove that point by having a MSE of 0.036390. The biggest constraint in our model development are the computational ressources, because of which only limited experiments were ran with a limited set of hyperparameters. 
-
 ## **<a name="speed">Comparison of Speed</a>**
 
-One of the main incentives of building a JAX alternative of the existing work is its advantage of being faster than the standard PyTorch library. As also pointed by the original authors [5], while this approach is more computationally efficient, it is still slower than Linear or GNNs. Thus, the aim is to preserve the properties of the model while also providing a fast alternative. To show this, we compare the forward pass times of the original EGNN implementation in PyTorch [5] with our JAX version. The results of which can be seen in the following graph:
+One of the main incentives of building a JAX alternative of the existing work is its advantage of being faster than the standard PyTorch library. As also pointed by the original authors [5], while this approach is more computationally efficient, it is still slower than Linear or GNNs. Thus, the aim is to preserve the properties of the model while also providing a fast alternative. 
+
+JAX is designed to be highly efficient, leveraging the concept of functional programming. One of the key aspects of this efficiency is how JAX handles memory. JAX uses immutable data structures, meaning that once a data structure is created, it cannot be modified. Instead, any modification to a data structure results in the creation of a new data structure. This approach ensures that operations can be easily parallelized and optimized.
+JAX often uses pointers to reference elements in memory rather than copying the actual elements. This approach has several advantages:
+
+- Efficiency: By using pointers, JAX avoids unnecessary copying of data, leading to faster computations and reduced memory usage.
+- Functionally Pure: Since JAX functions are pure (no side effects), using pointers ensures that data is not inadvertently modified, maintaining the integrity of operations.
+- Automatic Differentiation: JAX's ability to compute gradients efficiently relies on its functional programming model. Pointers allow JAX to track operations and dependencies without duplicating data.
+In practice, this means that when you pass data to a JAX function, it often operates on references to the data rather than making copies. This is why JAX operations can be very fast and memory-efficient.
+
+To show this, we compare the forward pass times of the original EGNN implementation in PyTorch [5] with our JAX version. The results of which can be seen in the following graph:
 
 
 <table align="center">
@@ -329,47 +183,17 @@ One of the main incentives of building a JAX alternative of the existing work is
   </tr>
 </table> -->
 
-Furthermore, having the implementation be fully in JAX allows it to benefit from Just-In-Time (JIT) compilation, for example in terms of helping improve the numerical stability and optimize it for even faster runtimes. 
+Another notable observation is the consistency in performance. The JAX implementation exhibits less variance in duration values, resulting in more stable and predictable performance across runs. This is particularly important for large-scale applications where performance consistency can impact overall system reliability and efficiency.
 
+As the number of nodes increases, the JAX implementation maintains a less steep increase in computation time compared to PyTorch. This indicates better scalability, making the JAX-based EGNN more suitable for handling larger and more complex graphs.
 
 ## **Future Work**
 
-In this section, we outline our theoretical vision for a method closer to the EGNN method but a still transformer. Since we did not have time to execute it in practice, this is only a theoretical overview.
-
-A limitation to our method is that while equvariant, it does not cover the entire space of possible roto-translations, if we were to model them (as in the N-Body dataset). To tackle this issue, a true E(3)-equivariant transformer could be constructed as follows:
-
-First, the original proposed method should be modified to work in the edge space, as opposed to the node space. This means that Equation 9 will now have node keys and values and edge queries:
-
-$$\begin{align} 
-Z^p_n = \frac{softmax(Q^p_e K^{pT}_n + M) V^p_n}{\sqrt{d}}.
-\end{align}$$
-
-Then, the summation of Equation 11 will become:
-
-$$\begin{align} 
-Z^0_j &= Z^p_n + Z^r_e.
-\end{align}$$ 
-
-Thus, the output of the combined encoder will have a sequence length equal to the number of edges. This allows for the correct format of outputs that fit Equation 6. Namely, the output corresponding to the edge (i,j) of the transformer will replace $\phi(m_{ij})$ in Equation 6:
-
-$$\begin{align} 
-x_i^{new} = x_i + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \Phi(F, E)_{ij},
-\end{align}$$ 
-
-where $F$ and $E$ are the node and edge feature matrices. 
-
-Notice that the update equation is a one step formula, as opposed to the iterative update in the EGNN formula. That is because we leave to the transformer to figure out the complex features to allow for the immediate prediction of the update coefficients.
-
-Furthermore, due to time constraints, bottlenecks were encountered which ultimately necessitated the use of a larger batch size (8192) for our experiments. This hampered performance as the batch size acts as a type of regularization on the data.
 
 
 ## **Concluding Remarks**
+ Our EGNN comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
 
-Our equivariant transformer model (DEMETAr) provides a novel approach to encoding both node and edge information separately within transformer models, enhancing the model's ability to handle geometric constraints and operations. As such, it is reasonably effective for use in tasks requiring equivariance. Our method builds upon the strengths of previous approaches such as the Equivariant Graph Neural Network (EGNN) through incorporating transformer-based attention mechanisms and geometric inductive biases.
-
-The reproduction of experiments on the QM9 and N-Body datasets validates the effectiveness of DEMETAr, with our results demonstrating competitive performance with existing state-of-the-art methods and even outperforming many recent implementations in both invariant and equivariant tasks. Furthermore, the implementation of DEMETAr in JAX offers considerable advantages in terms of speed and numerical stability. Our EGNN comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
-
-In summary, DEMETAr provides a robust framework for incorporating equivariance into transformer architectures. The dual encoder approach we introduce not only preserves geometric information but also offers flexibility in input processing, leading to improved performance across various benchmark tasks. The comprehensive evaluation and results highlight its potential in use for related tasks.
 
 ## **Authors' Contributions**
 
