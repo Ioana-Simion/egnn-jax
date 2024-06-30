@@ -45,18 +45,12 @@ def update(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_
 
 @partial(jax.jit, static_argnames=["model_fn", "task", "training", "max_num_nodes"])
 def l1_loss(params, h, edge_attr, edge_index, pos, node_mask,edge_mask, max_num_nodes, target, model_fn, meann, mad, training=True, task="graph"):
-    #jax.debug.print("Targets without normalization: {}", target)
     if not training:
         pred = jax.lax.stop_gradient(model_fn(params, h, pos, edge_index, edge_attr, node_mask, edge_mask, max_num_nodes)[0])
         pred = mad * pred + meann
     else:
         pred = model_fn(params, h, pos, edge_index, edge_attr, node_mask, edge_mask, max_num_nodes)[0]
-        target = (target - meann)/ mad
-    
-    # jax.debug.print("Predictions: {}", pred)
-    # print(pred.shape)
-    # jax.debug.print("Targets: {}", target)
-    # print(target.shape)
+        target = (target - meann) / mad
     assert pred.shape == target.shape, f"Shape mismatch: pred.shape = {pred.shape}, target_padded.shape = {target.shape}"
     return jnp.mean(jnp.abs(pred - target))
 
@@ -78,7 +72,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     print(f"Mean: {meann}, MAD: {mad}")
 
     init_feat, target = graph_transform_fn(next(iter(train_loader)))
-    lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs * len(train_loader))
+    lr_schedule = cosine_decay_schedule(init_value=args.lr, decay_steps=args.epochs * len(train_loader), alpha=0.00001)
 
     opt_init, opt_update = optax.chain(
         optax.adamw(learning_rate=lr_schedule, weight_decay=args.weight_decay)
@@ -97,8 +91,6 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     val_scores = []
     test_loss, best_val_epoch = 0, 0
     best_val_loss = float('inf')
-    log_interval = 20
-    recent_losses = []
 
     global_step = 0
     for epoch in range(args.epochs):
@@ -112,14 +104,9 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
             loss, params, opt_state = update_fn(params, x, None, edge_index, pos, node_mask, edge_mask, max_num_nodes, target=target, opt_state=opt_state)
             loss_item = float(jax.device_get(loss))
             train_loss += loss_item
-            recent_losses.append(loss_item)
-            if len(recent_losses) > log_interval:
-                recent_losses.pop(0)
-            avg_recent_loss = sum(recent_losses) / len(recent_losses)
-            if i % log_interval == 0:
-                print(f"Iteration {i} \t Avg loss over last {log_interval} iterations: {avg_recent_loss:.4f} \t lr {current_lr:.6f}")
-
+            
             writer.add_scalar('Loss/train', loss_item, global_step=global_step)
+            global_step += 1
             #gc.collect()
             #jax.clear_caches()
 
@@ -138,14 +125,11 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
                 print("\t   (New best performance, saving model...)")
                 best_val_loss = val_loss_item
                 save_model(params, checkpoint_path, model_name)
-                
-            test_loss = eval_fn(test_loader, params, max_num_nodes)
-            print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
-            #jax.clear_caches()
+                test_loss = eval_fn(test_loader, params, max_num_nodes)
+                print(f"[Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, Validation loss: {val_loss:.6f}, Test loss: {jax.device_get(test_loss):.6f}")
 
         current_lr = lr_schedule(global_step)
         print(f"End of Epoch {epoch} \t Learning Rate: {current_lr:.6f}")
-        global_step += 1
 
     print(f"Final Performance [Epoch {epoch + 1:2d}] Training loss: {train_loss:.6f}, "
           f"Validation loss: {best_val_loss:.6f}, Test loss: {float(jax.device_get(test_loss)):.6f}")
@@ -211,11 +195,16 @@ if __name__ == "__main__":
     parsed_args.task = "node"
     parsed_args.radius = 1000.0
     parsed_args.node_type = "continuous"
-
+    os.environ["XLA_FLAGS"] = (
+    "--xla_gpu_enable_triton_softmax_fusion=true "
+    "--xla_gpu_triton_gemm_any=false "
+    "--xla_gpu_enable_async_collectives=true "
+    "--xla_gpu_enable_latency_hiding_scheduler=true "
+    "--xla_gpu_enable_highest_priority_async_stream=true "
+)
     from torch_geometric.datasets import QM9
 
     dataset = QM9(root='data/QM9', pre_transform=RemoveNumHs())
-    #parsed_args.charge_power = max_charge
 
     graph_transform = TransformDLBatches
 

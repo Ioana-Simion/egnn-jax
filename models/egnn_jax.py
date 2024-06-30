@@ -4,12 +4,6 @@ import flax.linen as nn
 from jax.nn.initializers import glorot_uniform, uniform
 from jax.tree_util import tree_map
 
-#def xavier_init(gain=1.0):
-#    def init(key, shape, dtype):
-#        bound = gain * jnp.sqrt(6.0 / (shape[0] + shape[1]))
-#        return jax.random.uniform(key, shape, dtype, -bound, bound)
-#    return init
-
 def unsorted_segment_sum(data, segment_ids, num_segments):
     return jax.ops.segment_sum(data, segment_ids, num_segments)
 
@@ -154,12 +148,11 @@ class E_GCL_OG(nn.Module):
             ])
 
     def edge_model(self, source, target, radial, edge_attr):
-        #print(edge_attr)
         if edge_attr is None:
             out = jnp.concatenate([source, target, radial], axis=1)
         else:
             edge_attr = edge_attr.reshape(-1, edge_attr.shape[-1])
-            out = jnp.concatenate([source, target, radial.reshape(-1, 1), edge_attr], axis=1)
+            out = jnp.concatenate([source, target, radial, edge_attr], axis=1)
         out = self.edge_mlp(out)
         if self.attention:
             att_val = self.att_mlp(out)
@@ -206,10 +199,7 @@ class E_GCL_OG(nn.Module):
 
     def __call__(self, h, edge_index, coord, node_mask, edge_mask, edge_attr=None, node_attr=None, n_nodes=None):
         row, col = edge_index
-        #print(coord)
-        #print(f'coord shape {coord.shape}')
         radial, coord_diff = self.coord2radial(edge_index, coord)
-
         edge_feat = self.edge_model(h[row], h[col], radial, edge_attr)
 
         edge_feat = edge_feat * edge_mask
@@ -288,7 +278,6 @@ def get_edges_batch(n_nodes, batch_size):
     return edges, edge_attr
 
 if __name__ == "__main__":
-    # Dummy parameters
     batch_size = 8
     n_nodes = 4
     n_feat = 1
@@ -296,7 +285,6 @@ if __name__ == "__main__":
     charge_power = 2
     charge_scale = 9
 
-    # Dummy variables h, x and fully connected edges
     charges = jnp.array([0, 1, 2, 0, 1, 2, 0, 1])
     one_hot = jax.nn.one_hot(charges, num_classes=charge_power + 1)
     h = preprocess_input(one_hot, charges, charge_power, charge_scale)
@@ -306,11 +294,9 @@ if __name__ == "__main__":
 
     rng = jax.random.PRNGKey(42)
 
-    # Initialize EGNN with attention
     egnn = EGNN_QM9(hidden_nf=32, out_node_nf=1, attention=True)
 
     params = egnn.init(rng, h, x, edges, edge_attr, jnp.ones((batch_size * n_nodes, 1)), n_nodes)["params"]
 
-    # Now you can use the model's `apply` method with these parameters
     output = egnn.apply({"params": params}, h, x, edges, edge_attr, jnp.ones((batch_size * n_nodes, 1)), n_nodes)
     print(output)

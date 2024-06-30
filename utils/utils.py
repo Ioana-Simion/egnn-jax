@@ -73,16 +73,15 @@ def get_collate_fn_egnn_transformer(meann, mad, max_num_nodes, max_num_edges):
 def preprocess_input(one_hot, charges, charge_power, charge_scale, device):
     charges = charges.to(device)
     one_hot = one_hot.to(device)
-    # print("charge power:",charge_power)
-    # print("charge scale:",charge_scale)
+    
+    # Compute charge tensor
     charge_tensor = (charges.unsqueeze(-1) / charge_scale).pow(
         torch.arange(charge_power + 1., device=device, dtype=torch.float32))
-    charge_tensor = charge_tensor.view(charges.shape + (charge_power + 1,))
-    atom_scalars = (one_hot.unsqueeze(-1) * charge_tensor.unsqueeze(-2)).view(charges.shape + (-1,))
-    # print("charges:", charges)
-    # print("one_hot:", one_hot)
-    # print("charge_tensor:", charge_tensor)
-    # print("atom_scalars:", atom_scalars)
+    charge_tensor = charge_tensor.view(charges.shape + (1, charge_power + 1))
+    
+    # Compute atom scalars
+    atom_scalars = (one_hot.unsqueeze(-1) * charge_tensor).view(charges.shape[:2] + (-1,))
+    
     return atom_scalars
 
 def collate_fn(data_list, charge_power, charge_scale, device):
@@ -122,45 +121,67 @@ def collate_fn(data_list, charge_power, charge_scale, device):
 
     return atom_scalars, edge_attr, pos, mask, edge_mask, y
 
-def get_collate_fn_egnn(meann, mad, max_num_nodes, max_num_edges, charge_power, charge_scale, device):
+def get_collate_fn_egnn(meann, mad, max_num_nodes, max_num_edges, charge_power, charge_scale):
     def _collate_fn(data_list):
-        batch_size = len(data_list)
-        
-        # Preallocate tensors with static sizes
-        x = torch.zeros((batch_size, max_num_nodes, data_list[0].x.size(1)), dtype=torch.float32)
-        edge_index_src = []
-        edge_index_tgt = []
-        edge_attr = torch.zeros((batch_size, max_num_edges, data_list[0].edge_attr.size(1)), dtype=torch.float32)
-        pos = torch.zeros((batch_size, max_num_nodes, data_list[0].pos.size(1)), dtype=torch.float32)
-        y = torch.zeros((batch_size, data_list[0].y.size(1)), dtype=torch.float32)
-        charges = torch.zeros((batch_size, max_num_nodes), dtype=torch.long)
+        num_atom_types = 5
+        # Keep only the first `num_atom_types` features (one-hot encoding)
+        x_list = [d.x[:, :num_atom_types] for d in data_list]
 
+        x_list[0] = torch.cat([x_list[0], torch.zeros(max_num_nodes - x_list[0].size(0), x_list[0].size(1))], dim=0)
+        x = pad_sequence(x_list, batch_first=True, padding_value=0.0)
+        
+        # Normalize target --happens in loss
+        #y = torch.stack([normalize(d.y, meann, mad) for d in data_list]).squeeze(1)
+        y = torch.stack([d.y for d in data_list]).squeeze(1)
+        
+        # Process edge indices
+        edge_index = []
+        start_idx = 0
+        for d in data_list:
+            num_edges = d.edge_index.size(1)
+            padded_edges = torch.cat([d.edge_index, torch.full((2, max_num_edges - num_edges), -1)], dim=1)
+            padded_edges = torch.where(padded_edges != -1, padded_edges + start_idx, padded_edges)
+            edge_index.append(padded_edges)
+            start_idx += max_num_nodes
+        edge_index = torch.stack(edge_index).transpose(0, 1).reshape(2, -1)
+
+        # Process edge attributes
+        edge_attr = [d.edge_attr for d in data_list]
+        edge_attr[0] = torch.cat([edge_attr[0], torch.zeros(max_num_edges - edge_attr[0].size(0), edge_attr[0].size(1))], dim=0)
+        edge_attr = pad_sequence(edge_attr, batch_first=True, padding_value=0.0)
+        edge_attr = edge_attr.reshape(edge_attr.shape[0] * edge_attr.shape[1], -1)
+
+        # Process positions
+        pos_list = [d.pos for d in data_list]
+        pos_list[0] = torch.cat([pos_list[0], torch.zeros(max_num_nodes - pos_list[0].size(0), pos_list[0].size(1))], dim=0)
+        pos = pad_sequence(pos_list, batch_first=True, padding_value=0.0)
+        pos = pos.reshape(pos.shape[0] * pos.shape[1], -1)
+
+        # Process charges and compute atom scalars
+        charges = torch.zeros((len(data_list), max_num_nodes), dtype=torch.long)
         for i, data in enumerate(data_list):
-            num_nodes = data.x.size(0)
-            num_edges = data.edge_index.size(1)
+            charges[i, :data.z.size(0)] = data.z
 
-            x[i, :num_nodes] = data.x
-            edge_index_src.append(data.edge_index[0] + i * max_num_nodes)
-            edge_index_tgt.append(data.edge_index[1] + i * max_num_nodes)
-            edge_attr[i, :num_edges] = data.edge_attr
-            pos[i, :num_nodes] = data.pos
-            y[i] = data.y
-            charges[i, :num_nodes] = data.z
+        atom_scalars = preprocess_input(x, charges, charge_power, charge_scale, 'cpu')
 
-        edge_index_src = torch.cat(edge_index_src)
-        edge_index_tgt = torch.cat(edge_index_tgt)
-        edge_index = [jnp.array(edge_index_src.numpy()), jnp.array(edge_index_tgt.numpy())]
+        batch_size, n_nodes, _ = x.shape
+        atom_scalars = atom_scalars.view(batch_size * n_nodes, -1)
+        node_mask = (charges > 0).float().view(batch_size * n_nodes, -1)
 
-        one_hot = torch.nn.functional.one_hot(charges, num_classes=charge_scale+1).float()
-        atom_scalars = preprocess_input(one_hot, charges, charge_power, charge_scale, 'cpu')
-        
-        # Flatten node features
-        atom_scalars = atom_scalars.view(-1, atom_scalars.size(-1))
-        
-        # Create masks
-        node_mask = (charges > 0).float().view(-1, 1)
-        edge_mask = (edge_index_src >= 0).float().view(-1, 1)
+        # Create edge_mask
+        edge_mask = (edge_index[0] >= 0).float().view(-1, 1)
+
+        # Convert to JAX arrays
+        atom_scalars = jnp.array(atom_scalars.numpy())
+        edge_attr = jnp.array(edge_attr.numpy())
+        pos = jnp.array(pos.numpy())
+        y = jnp.array(y.numpy())
+        edge_index = jnp.array(edge_index.numpy())
+        node_mask = jnp.array(node_mask.numpy())
+        edge_mask = jnp.array(edge_mask.numpy())
+
         return atom_scalars, edge_attr, edge_index, pos, y, node_mask, edge_mask
+
     return _collate_fn
 
 def compute_max_charge(dataset):
@@ -304,7 +325,7 @@ def get_loaders_and_statistics(
             num_test = 13000
             meann, mad = compute_meann_mad(dataset, get_property_index(args.property))
             max_num_nodes, max_num_edges = compute_max_nodes_and_edges(dataset)
-            collate_fn_egnn = get_collate_fn_egnn(meann, mad, max_num_nodes, max_num_edges, args.charge_power, args.charge_scale, torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+            collate_fn_egnn = get_collate_fn_egnn(meann, mad, max_num_nodes, max_num_edges, args.charge_power, args.charge_scale)
             train_loader = DataLoader(
                 dataset[:num_train],
                 batch_size=args.batch_size,
