@@ -1,4 +1,4 @@
-name: egnn-transformer
+name: egnn-jax
 channels:
   - pytorch
   - conda-forge

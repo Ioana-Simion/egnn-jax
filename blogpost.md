@@ -1,10 +1,10 @@
-# **Accelerating Equivariant Neural Networks with JAX for Complex Data Sets "**
+# **Accelerating Equivariant Neural Networks with JAX for Complex Data Sets**
 
 ### _I. Simion, S. Vasilev, J. Schäfer, G. Go, T. P. Kersten_
 
 ---
 
-This blog post serves as a tutorial for fast and scalable training of Equivariant Neural Networks, which handle more complex data, making them slower and harder to train. We propose leveraging JAX's capabilities to address these challenges. In this work, we analyze the benefits of utilizing JAX and provide a detailed breakdown of the steps needed to achieve a fully JIT-compatible framework. This approach not only enhances the performance of Neural Networks but also opens the door for future research in developing fully equivariant transformers using JAX.
+This blogpost serves as a tutorial for the fast and scalable training of Equivariant Neural Networks, which are slower to train due to the handling of more complex data. We propose leveraging JAX's capabilities to address these challenges. In this work, we analyze the benefits of utilizing JAX and provide a detailed breakdown of the steps needed to achieve a fully JIT-compatible framework. This approach not only enhances the performance of Neural Networks but also opens the door for future research in developing fully equivariant transformers using JAX.
 
 This blogpost serves three purposes: 
 1. Explain the ideas of equivariance in networks while also explaining some of the methods used.
@@ -55,7 +55,20 @@ x_i^{l+1} = x_i^l + C \sum_{j \neq i} (\mathbf{x}\_i^l - \mathbf{x}\_j^l) \varph
 \mathbf{h}\_i^{l+1} = \varphi_h (\mathbf{h}\_i^l, \mathbf{m}\_i). & \qquad \qquad \text{(Equation 8)}
 \end{align}$$
 
-This idea of using the distances during computation forms one of the bases of our proposed transformer architecture, as it is a simple yet effective way to impose geometric equivariance within a system.
+This idea of using the distances during computation forms an important basis in these architectures, as it is a simple yet effective way to impose geometric equivariance within a system.
+
+### Why JAX?
+
+JAX is a high-performance numerical computing library that provides several advantages over traditional frameworks. By default, JAX automatically compiles library calls using just-in-time (JIT) compilation, ensuring optimal execution. It utilizes XLA-optimized kernels, allowing for sophisticated algorithm expression without leaving Python. Furthermore, JAX also excels in utilizing multiple GPU or TPU cores and automatically evaluating gradients through differentiation transformations, making it ideal for high-compute scenarios.
+
+This is partially caused by how JAX often uses pointers to reference elements in memory instead of copying them, which has several advantages:
+
+- **Efficiency:** Through pointers, JAX avoids the unnecessary copying of data, resulting in faster computations and lower memory usage.
+- **Functionally Pure:** Since JAX functions are pure (i.e., contain no side effects), using pointers ensures that the data is not accidentally modified, maintaining the integrity of all operations.
+- **Automatic Differentiation:** JAX's efficient gradient computation relies on its functional programming model. Pointers allow JAX to track operations and dependencies without data duplication.
+
+
+---
 
 ## **Experiments**
 
@@ -67,30 +80,52 @@ In this dataset, a dynamical system consisting of 5 atoms is modeled in 3D space
 
 This dataset consists of small molecules and the task is to predict a chemical property. The atoms of the molecules have 3 dimensional positions and each atom is one hot encoded to the atom type. This task is an invariant task, since the chemical property does not depend on position or rotation of the molecule. In addition, larger batch sizes were also experimented with due to smaller sizes causing bottlenecks during training. 
 
-## **<a name="jax">Why JAX?</a>**
-JAX is a high-performance numerical computing library that provides several advantages over traditional frameworks like PyTorch. By default, JAX automatically compiles library calls using just-in-time (JIT) compilation, which ensures optimal execution performance. This compilation utilizes XLA-optimized kernels, allowing for sophisticated algorithm expression without leaving Python. JAX also excels in utilizing multiple GPUs or TPU cores, making it ideal for high-compute scenarios. One of the standout features of JAX is its efficient evaluation of gradients through automatic differentiation transformations, which is crucial for training neural networks.
+### Data Preparation
 
+Here, we introduce a straightforward method for preprocessing data from a PyTorch-compatible format to one suitable for JAX. Our approach handles node features, edge attributes, indices, positions, and target properties. The key step would be converting the data to jax numpy (jnp) arrays, ensuring compatibility with JAX operations. For usage examples, refer to `qm9\utils.py` or `n_body\utils.py`.
 
-## **<a name="jax-data">Preparing data for JAX training</a>**
-In this section, we introduce a straightforward method for preprocessing data from a PyTorch-compatible format to one suitable for JAX. Our approach handles node features, edge attributes and indices, positions, and target properties. The key step is converting data to jnp.array, ensuring compatibility with JAX operations. For examples of such usage, refer to `qm9\utils.py` or `n_body\utils.py`.
+### Training
 
-## **<a name="jax-data">Training the model</a>**
-Now, we will address the key differences and steps in adapting the training loop, model saving and evalution functions in JAX (refer to `main_qm9.py` and `nbody_egnn_trainer.py`)
+We now address the key differences and steps in adapting the training loop, model saving, and evalution functions for JAX (refer to `main_qm9.py` and `nbody_egnn_trainer.py`).
 
-JAX uses a functional approach to define and update the model parameters. We use `jax.jit` via the `partial` decorator for just-in-time (JIT) compilation to optimize performance. JIT compilation ensures that our code runs efficiently by compiling the functions once and then executing the compiled code multiple times. We also see `static_argnames` in the decorators of loss and update function, which specify which arguments to treat as static. These are arguments whose values are known at compile time and do not change across different function calls. By specifically marking them, JAX can assume the static arguments won't change and optimize the function accordingly and not worry about the variability. 
+JAX uses a functional approach to define and update the model parameters. We use `jax.jit` via the `partial` decorator for JIT compilation, which ensures that our code runs efficiently by compiling the functions once and then executing them multiple times. We also utilize `static_argnames` as decorators for the loss and update functions, which specify the arguments to treat as static. By doing this, JAX can assume these arguments will not change and optimize the function accordingly. 
 
-In JAX, model initialization requires knowing the size of the input beforehand. We extract features to get shapes and initialize the model using: params = `model.init(jax_seed, *init_feat, max_num_nodes)`.
-This seed is used to initialize the random number generators, which in turn produce the sequences of random numbers used in model initialization, data shuffling, etc. In JAX, the seed is created using the jax.random.PRNGKey function. This function generates a key that is used for all random operations, ensuring that they are reproducible and can be split into multiple independent keys if needed.
+Moreover, model initialization in JAX requires knowing the input sizes beforehand. We extract features to get their shapes and initialize the model using `model.init(jax_seed, *init_feat, max_num_nodes)`. This seed initializes the random number generators, which then produces the random number sequences used in virtually all processes. Also, this seed is created using the `jax.random.PRNGKey` function, which is used for all random operations. This ensures that they are all reproducible and can be split into multiple independent keys if needed.
 
-The loss function is called as `jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target)`. `jax.grad` is a powerful tool in JAX for automatic differentiation, allowing to compute gradients of scalar-valued functions with respect to their inputs.
+The loss function is called through `jax.grad(loss_fn)(params, x, edge_attr, edge_index, pos, node_mask, edge_mask, max_num_nodes, target)`. `jax.grad` is a powerful tool in JAX for automatic differentiation, allowing us to compute gradients of scalar-valued functions with respect to their inputs.
 
-## **<a name="architecture">Evaluating the Models</a>**
+---
+## Evaluation
+### **<a name="speed">Speed Comparison</a>**
 
+The EGNN authors [5] note that while their approach is more computationally efficient, it is still slower than Linear and Graph Neural Networks. Thus, the aim is to preserve the properties of the model while also providing a fast alternative. We demonstrate the effectivity of building a JAX-based alternative by comparing the forward pass times of the original EGNN implementation with our version. The results of which can be seen in the following graph:
 
+<table align="center">
+  <tr align="center">
+    <td><img src="assets/jaxVsPytorch32.png" width="300"></td>
+    <td><img src="assets/jaxvspytorch64.png" width="300"></td>
+    <td><img src="assets/jaxvspytorch128.png" width="300"></td>
+  </tr>
+  <tr align="center">
+    <td colspan="3"><b>Figure 2.</b> EGNN speed comparison between JAX EGNN (ours) and the PyTorch EGNN [5]. Benchmark results represent a single forward pass averaged over 100 tries. The batch sizes used here are 32, 64 and 128.</td>
+  </tr>
+</table>
+<!-- <table align="center">
+  <tr align="center">
+      <td><img src="assets/speed_performance.png" width=800></td>
+  </tr>
+  <tr align="left">
+    <td colspan=2><b>Figure 2.</b> EGNN speed comparison between JAX EGNN (ours) and PyTorch EGNN (model to reproduce [5]). Benchmark results represent a single forward pass averaged over 100 tries. Batch size used here is 32, 64 and 128. We can see great results for the jax implementation across the scale, with less spikes in duration values.</td>
+  </tr>
+</table> -->
+
+One notable observation is the consistency in performance. The JAX implementation exhibits less variance in duration values, resulting in more stable and predictable performances across runs. This is particularly important for large-scale applications where the performance consistency can impact overall system reliability and efficiency.
+
+Additionally, as the number of nodes increases, the JAX implementation maintains a less steep increase in computation time compared to PyTorch. This indicates better scalability, making the JAX-based EGNN more suitable for handling larger and more complex graphs.
 
 ## **<a name="reproduction">Reproduction Results</a>**
 
-To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in Jax, to make use of Jax's faster just-in-time (jit) compilation.
+To show that our implementation generally preserves the performance and characteristics of the base model, we perform a reproduction of the results reported in [5] and display the results for several properties in both experiments. They can be found in the table below.
 
 <table align="center">
   <tr align="center">
@@ -113,95 +148,18 @@ To reproduce the EGNN model \[7\], we rewrote the entire model from scratch in J
   </tr>
 </table>
 
-Here we can see, that our EGNN implementation outperforms the original author's implementation on the N-Body dataset. Using other publicly available EGNN implementations, also achieve a similar performance as our model on our data. We argue therefore, that the increased performance, comes from the fact, that the dataset is generated slightly different to the one presented in \[5\].
-
-## **<a name="comparison">Comparison with other Methods</a>**
-
-Meanwhile, when comparing with other transformer implementations, we see based on the below results that our method is comparable to other approaches that have been published recently in the past few years for both QM9 and N-Body. 
-
-<table align="center">
-  <tr align="center">
-      <th align="left">Metric</th>
-      <th align="left">WaveScatt</th>
-      <th align="left">NMP</th>
-      <th align="left">SchNet</th>
-      <th align="left">Cormorant</th>
-      <th align="left">LieConv(T3)</th>
-      <th align="left">TFN</th>
-      <th align="left">SE(3)-Transformer</th>
-      <th align="left">TorchMD-Net</th>
-      <th align="left">DEMETAr</th>
-  </tr>
-  <tr align="center">
-    <td align="left">ε<sub>HOMO</sub> (meV)</td>
-    <td align="left">85</td>
-    <td align="left">43</td>
-    <td align="left">41</td>
-    <td align="left">34</td>
-    <td align="left">30</td>
-    <td align="left">40</td>
-    <td align="left">35.0</td>
-    <td align="left">20.3</td>
-    <td align="left">75</td>
-  </tr>
-  <tr align="left">
-    <td colspan=10><b>Table 2.</b> Comparison of results for QM9, taken from [7, 18].</td>
-  </tr>
-</table>
-
-## **<a name="speed">Comparison of Speed</a>**
-
-One of the main incentives of building a JAX alternative of the existing work is its advantage of being faster than the standard PyTorch library. As also pointed by the original authors [5], while this approach is more computationally efficient, it is still slower than Linear or GNNs. Thus, the aim is to preserve the properties of the model while also providing a fast alternative. 
-
-JAX is designed to be highly efficient, leveraging the concept of functional programming. One of the key aspects of this efficiency is how JAX handles memory. JAX uses immutable data structures, meaning that once a data structure is created, it cannot be modified. Instead, any modification to a data structure results in the creation of a new data structure. This approach ensures that operations can be easily parallelized and optimized.
-JAX often uses pointers to reference elements in memory rather than copying the actual elements. This approach has several advantages:
-
-- Efficiency: By using pointers, JAX avoids unnecessary copying of data, leading to faster computations and reduced memory usage.
-- Functionally Pure: Since JAX functions are pure (no side effects), using pointers ensures that data is not inadvertently modified, maintaining the integrity of operations.
-- Automatic Differentiation: JAX's ability to compute gradients efficiently relies on its functional programming model. Pointers allow JAX to track operations and dependencies without duplicating data.
-In practice, this means that when you pass data to a JAX function, it often operates on references to the data rather than making copies. This is why JAX operations can be very fast and memory-efficient.
-
-To show this, we compare the forward pass times of the original EGNN implementation in PyTorch [5] with our JAX version. The results of which can be seen in the following graph:
+Here, our EGNN implementation outperforms the original author's implementation on the N-Body dataset. Moreover, other publicly available EGNN implementations also achieve a similar performance as our model on our data. We therefore argue that the increased performance stems from how the dataset is generated slightly differently compared to the one presented in \[5\].
 
 
-<table align="center">
-  <tr align="center">
-    <td><img src="assets/jaxVsPytorch32.png" width="300"></td>
-    <td><img src="assets/jaxvspytorch64.png" width="300"></td>
-    <td><img src="assets/jaxvspytorch128.png" width="300"></td>
-  </tr>
-  <tr align="center">
-    <td colspan="3"><b>Figure 2.</b> EGNN speed comparison between JAX EGNN (ours) and PyTorch EGNN (model to reproduce [5]). Benchmark results represent a single forward pass averaged over 100 tries. Batch size used here is 32, 64 and 128. We can see great results for the jax implementation across the scale, with less spikes in duration values.</td>
-  </tr>
-</table>
-<!-- <table align="center">
-  <tr align="center">
-      <td><img src="assets/speed_performance.png" width=800></td>
-  </tr>
-  <tr align="left">
-    <td colspan=2><b>Figure 2.</b> EGNN speed comparison between JAX EGNN (ours) and PyTorch EGNN (model to reproduce [5]). Benchmark results represent a single forward pass averaged over 100 tries. Batch size used here is 32, 64 and 128. We can see great results for the jax implementation across the scale, with less spikes in duration values.</td>
-  </tr>
-</table> -->
+---
 
-Another notable observation is the consistency in performance. The JAX implementation exhibits less variance in duration values, resulting in more stable and predictable performance across runs. This is particularly important for large-scale applications where performance consistency can impact overall system reliability and efficiency.
+## Concluding Remarks
 
-As the number of nodes increases, the JAX implementation maintains a less steep increase in computation time compared to PyTorch. This indicates better scalability, making the JAX-based EGNN more suitable for handling larger and more complex graphs.
+Our EGNN comparisons reveal that the JAX-based model is faster than traditional PyTorch implementations, benefiting from JIT compilation to optimize runtime performance. In addition, we also demonstrate that these JAX-based models also achieve comparable performances to the aforementioned PyTorch ones, meaning that they are generally more suitable for equivariance tasks.
 
-## **Future Work**
+We also adapted the model for two well-known datasets: the QM9 dataset for molecule property prediction and the N-body dataset for simulating physical systems. This demonstrates the flexibility and potential of our JAX framework as a strong foundation for further development. Our work suggests that the JAX-based EGNN framework can be effectively extended to other applications, facilitating future research and advancements in equivariant neural networks and beyond.
 
-
-
-## **Concluding Remarks**
- Our EGNN comparisons reveal that the JAX-based implementation is faster than traditional PyTorch libraries, benefiting from Just-In-Time (JIT) compilation to optimize runtime performance.
-
-
-## **Authors' Contributions**
-
-- Ioana: Code implementation and debugging, running the code for results, coming up with ideas, creating the speed performance test and figures.
-- Stefan: Code and dataloader implementation and debugging, coming up with the ideas and formulae.
-- Jonas: Code implementation and debugging, proposal writing, comparing implementations and searching for ideas, running the code for results.
-- Gregory: Code documentation, dependency setup, assisting with comparing implementations and searching for ideas, blogpost writing.
-- Thies: Equivariance test writing, proposal writing, coordinating the group.
+---
 
 ## Bibliography
 

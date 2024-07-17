@@ -1,4 +1,4 @@
-# **DEMETAr: Double Encoder Method for an Equivariant Transformer Architecture**
+# **Accelerating Equivariant Neural Networks with JAX for Complex Data Sets**
 
 ## **1. Setup**
 
@@ -29,7 +29,7 @@ _Note:_ Be sure to use the enyironment file that corresponds to your device.
 2. Activate the environment:
 ```sh
 
-conda activate egnn-transformer
+conda activate egnn-jax
 
 ```
 
@@ -42,7 +42,6 @@ To perform the experiments, simply run the following lines:
 ```sh
 
 python main_qm9.py
-python transformer_trainer.py
 
 ```
 
@@ -70,7 +69,6 @@ You can adjust the process using the following parameters:
 ```sh
 
 python nbody_egnn_trainer.py
-python nbody_transformer_trainer.py
 
 ```
 
@@ -115,5 +113,3 @@ The above can be cited through the following:
 }
 
 ```
-
-**Transformer:** https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutorial6/Transformers_and_MHAttention.html
