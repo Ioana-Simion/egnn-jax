@@ -1,4 +1,5 @@
 import os
+import gc
 import jax
 import jraph
 import json
@@ -7,15 +8,15 @@ import argparse
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from functools import partial
-from qm9.utils import GraphTransform, TransformDLBatches, RemoveNumHs
-from flax.training import checkpoints
 from typing import Callable
-from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, denormalize, normalize, compute_max_charge
-import gc
+from functools import partial
+from datetime import datetime
+from flax.training import checkpoints
 from optax import cosine_decay_schedule
 from torch.utils.tensorboard import SummaryWriter
-from datetime import datetime
+from qm9.utils import GraphTransform, TransformDLBatches, RemoveNumHs
+from utils.utils import get_model, get_loaders_and_statistics, set_seed, get_property_index, denormalize, normalize, compute_max_charge
+
 
 # Seeding
 jax_seed = jax.random.PRNGKey(42)
@@ -180,6 +181,7 @@ def train_model(args, model, graph_transform, model_name, checkpoint_path):
     return
 
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser()
     # Run parameters
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")

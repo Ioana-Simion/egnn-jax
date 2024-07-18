@@ -11,8 +11,8 @@ import argparse
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from functools import partial
-from n_body.utils import NbodyBatchTransform
 from typing import Callable, Iterable
+from n_body.utils import NbodyBatchTransform
 from utils.utils import get_model, get_loaders_and_statistics, set_seed
 
 
@@ -227,6 +227,7 @@ def train_model(args, graph_transform, model_name, checkpoint_path):
 
 
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser()
     # Run parameters
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")

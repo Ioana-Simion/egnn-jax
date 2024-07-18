@@ -12,10 +12,8 @@ n_body/dataset/data
 
 .idea
 data/QM9/*
-assets/transformer/*
 assets/test_results.json
 assets/test.tar
-assets/transformer_results.json
 assets/test/*
 data/QM9/processed/data_v3.pt
 data/QM9/processed/pre_filter.pt
