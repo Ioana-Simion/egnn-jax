@@ -1,6 +1,6 @@
 # **Accelerating Equivariant Neural Networks with JAX for Complex Data Sets**
 
-### _I. Simion, S. Vasilev, J. Schäfer, G. Go, T. P. Kersten_
+### _I. Simion, S. Vasilev, J. Schäfer, G. Go_
 
 ---
 
